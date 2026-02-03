@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛博牛马的逆袭</title>
+    
+    <!-- 1. 样式库 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. React 基础库 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 3. Babel 解析器 -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 4. Markdown 解析器 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- 5. Firebase Compat SDKs (修复：改用 Compat 版本以避免 Babel 编译错误) -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .animate-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* Markdown 样式优化 */
+        .prose h1, .prose h2, .prose h3 { color: #1e293b; font-weight: 700; margin-top: 1em; margin-bottom: 0.5em; }
+        .prose ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 1em; color: #475569; }
+        .prose li { margin-bottom: 0.2em; }
+        .prose p { margin-bottom: 0.8em; line-height: 1.6; color: #334155; }
+        .prose strong { color: #0f172a; font-weight: 600; }
+        
+        /* 隐藏滚动条但保留功能 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-600">
+    <div id="root"></div>
+
+    <!-- 核心逻辑 -->
+    <script type="text/babel">
+        // --- 全局对象获取 ---
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // --- Firebase 初始化 (Compat 模式) ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        
+        // 防止重复初始化
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // --- 图标组件 (SVG) ---
+        const Icon = ({ children, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>{children}</svg>
+        );
+        const Trash2 = (p) => <Icon {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
+        const Star = (p) => <Icon {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></Icon>;
+        const CheckCircle = (p) => <Icon {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></Icon>;
+        const Circle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/></Icon>;
+        const Plus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
+        const Settings = (p) => <Icon {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></Icon>;
+        const X = (p) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Icon>;
+        const CalendarIcon = (p) => <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Icon>;
+        const ChevronLeft = (p) => <Icon {...p}><polyline points="15 18 9 12 15 6"/></Icon>;
+        const ChevronRight = (p) => <Icon {...p}><polyline points="9 18 15 12 9 6"/></Icon>;
+        const Clock = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Icon>;
+        const Copy = (p) => <Icon {...p}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></Icon>;
+        const Wifi = (p) => <Icon {...p}><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></Icon>;
+        const WifiOff = (p) => <Icon {...p}><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></Icon>;
+        const Cloud = (p) => <Icon {...p}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></Icon>;
+        const Brain = (p) => <Icon {...p}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></Icon>;
+        const Sparkles = (p) => <Icon {...p}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 5h4"/><path d="M19 19v4"/><path d="M15 21h4"/></Icon>;
+
+        // --- 辅助函数 ---
+        const getStartOfWeek = (date) => {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+            return new Date(d.setDate(diff));
+        };
+
+        const formatDate = (dateStr) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:00`;
+        };
+
+        const isSameDay = (d1, d2) => {
+            return d1.getFullYear() === d2.getFullYear() &&
+                d1.getMonth() === d2.getMonth() &&
+                d1.getDate() === d2.getDate();
+        };
+
+        const GREETINGS = [
+            "老细辛苦了，多多休息不要劳累。",
+            "喝口水吧，身体是革命的本钱。",
+            "加油，今天的努力是为了明天的摸鱼！",
+            "记得按时吃饭，胃不好怎么逆袭？"
+        ];
+
+        // 高级 AI 指令模板
+        const DEFAULT_AI_PROMPT = `你是一名敏捷项目管理专家。请根据以下项目和任务列表，为我提供一份深刻的分析报告。
+分析要求：
+1. **🔥 艾森豪威尔矩阵分类**：将待办任务分为“紧急重要”、“重要不紧急”、“紧急不重要”和“不紧急不重要”四类，并指出我今天必须完成的 Top 3 任务。
+2. **🚧 阻塞突破策略**：针对状态为“等他”的任务，请根据任务内容，生成具体的催促或跟进话术。
+3. **⚠️ 风险预警**：识别已逾期和即将到期的任务。
+4. **📅 今日行动建议**：给出一个建议的日程安排。
+请用 Markdown 格式输出。`;
+
+        // --- 自定义 Hooks ---
+        function useOnClickOutside(ref, handler) {
+            useEffect(() => {
+                const listener = (event) => {
+                    if (!ref.current || ref.current.contains(event.target)) return;
+                    handler(event);
+                };
+                document.addEventListener("mousedown", listener);
+                document.addEventListener("touchstart", listener);
+                return () => {
+                    document.removeEventListener("mousedown", listener);
+                    document.removeEventListener("touchstart", listener);
+                };
+            }, [ref, handler]);
+        }
+
+        // --- 子组件 ---
+
+        // AI 弹窗
+        const AIAnalysisModal = ({ isOpen, onClose, tasks, projects, aiSettings }) => {
+            const [loading, setLoading] = useState(false);
+            const [analysis, setAnalysis] = useState('');
+            const [error, setError] = useState('');
+
+            useEffect(() => {
+                if (isOpen) {
+                    setAnalysis('');
+                    setError('');
+                    runAnalysis();
+                }
+            }, [isOpen]);
+
+            const runAnalysis = async () => {
+                if (!aiSettings.apiKey) {
+                    setError('请先在设置中配置 AI API Key。');
+                    return;
+                }
+                setLoading(true);
+                const activeTasks = tasks.filter(t => t.status !== 'completed');
+                const projectsSummary = projects.map(p => `- ${p.name} (状态: ${p.waitStatus === 'wait_me' ? '等待我' : p.waitStatus === 'wait_him' ? '等待他人' : '进行中'})`).join('\n');
+                const tasksSummary = activeTasks.map(t => `- [${t.planDate ? new Date(t.planDate).toLocaleDateString() : '无日期'}] ${t.content} (${t.isImportant ? '⭐重要' : '普通'}) 负责人:${t.assigner || '无'}`).join('\n');
+                const fullPrompt = `${aiSettings.customPrompt || DEFAULT_AI_PROMPT}\n\n当前时间：${new Date().toLocaleString()}\n\n【项目列表】：\n${projectsSummary}\n\n【待办任务】：\n${tasksSummary}`;
+
+                try {
+                    const response = await fetch(aiSettings.baseUrl + '/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiSettings.apiKey}` },
+                        body: JSON.stringify({
+                            model: aiSettings.model,
+                            messages: [
+                                { role: "system", content: "你是一个专业的敏捷项目管理助手。" },
+                                { role: "user", content: fullPrompt }
+                            ],
+                            stream: false
+                        })
+                    });
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        throw new Error(`API 失败: ${response.status} ${errData.error?.message || ''}`);
+                    }
+                    const data = await response.json();
+                    setAnalysis(data.choices?.[0]?.message?.content || "AI 无回复。");
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col animate-in">
+                        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50 rounded-t-2xl">
+                            <h2 className="text-lg font-bold text-indigo-800 flex items-center gap-2"><Sparkles size={20}/> AI 军师分析</h2>
+                            <button onClick={onClose}><X size={20}/></button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1 text-sm text-slate-700 leading-relaxed">
+                            {loading && <div className="text-center py-10 text-slate-400">正在思考...</div>}
+                            {error && <div className="p-4 bg-red-50 text-red-600">{error}</div>}
+                            {!loading && !error && analysis && <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: marked.parse(analysis) }}></div>}
+                        </div>
+                        <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex justify-end">
+                            <button onClick={onClose} className="px-4 py-2 border rounded hover:bg-slate-100">关闭</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const CustomDatePicker = ({ isOpen, onClose, onSelect, initialDate }) => {
+            const [currentMonth, setCurrentMonth] = useState(new Date());
+            const [selectedDay, setSelectedDay] = useState(initialDate ? new Date(initialDate).getDate() : new Date().getDate());
+            const popupRef = useRef();
+
+            useEffect(() => {
+                if (isOpen && initialDate) {
+                    const d = new Date(initialDate);
+                    setCurrentMonth(d);
+                    setSelectedDay(d.getDate());
+                }
+            }, [isOpen, initialDate]);
+
+            useOnClickOutside(popupRef, () => onClose());
+
+            if (!isOpen) return null;
+
+            const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+            const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
+            const hours = Array.from({ length: 11 }, (_, i) => i + 8); 
+
+            const handleSave = (hour) => {
+                const finalDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), selectedDay);
+                finalDate.setHours(hour);
+                finalDate.setMinutes(0);
+                onSelect(finalDate.toISOString());
+                onClose();
+            };
+            const changeMonth = (d) => setCurrentMonth(new Date(new Date(currentMonth).setMonth(currentMonth.getMonth() + d)));
+
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
+                    <div ref={popupRef} className="bg-white shadow-2xl rounded-xl border border-slate-100 p-5 w-80 flex flex-col gap-4 animate-in">
+                        <div className="flex justify-between items-center font-bold text-slate-700">
+                            <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-slate-100 rounded"><ChevronLeft size={20}/></button>
+                            <span>{currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月</span>
+                            <button onClick={() => changeMonth(1)} className="p-1 hover:bg-slate-100 rounded"><ChevronRight size={20}/></button>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-center text-sm">
+                            {['日','一','二','三','四','五','六'].map(d => <div key={d} className="text-slate-400 font-medium">{d}</div>)}
+                            {Array.from({length: firstDay}).map((_, i) => <div key={`e-${i}`} />)}
+                            {Array.from({length: daysInMonth}).map((_, i) => {
+                                const day = i + 1;
+                                return <button key={day} onClick={() => setSelectedDay(day)} className={`p-1 rounded-full w-8 h-8 flex items-center justify-center ${day === selectedDay ? 'bg-indigo-500 text-white' : 'hover:bg-slate-100'}`}>{day}</button>
+                            })}
+                        </div>
+                        <div className="border-t pt-3 grid grid-cols-4 gap-2">
+                            {hours.map(h => <button key={h} onClick={() => handleSave(h)} className="text-sm py-1 border rounded hover:bg-indigo-50">{h}:00</button>)}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[70] flex items-center justify-center">
+                    <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
+                        <h3 className="text-lg font-bold mb-2">{title}</h3>
+                        <p className="text-slate-600 mb-6">{message}</p>
+                        <div className="flex justify-end gap-3">
+                            <button onClick={onCancel} className="px-4 py-2 hover:bg-slate-100 rounded">取消</button>
+                            <button onClick={onConfirm} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">确认删除</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const GreetingPopup = ({ isOpen, message, onClose }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed top-20 right-10 z-50 animate-in">
+                    <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-4 rounded-xl shadow-lg flex items-center gap-3 relative pr-8">
+                        <div className="text-2xl">☕</div>
+                        <div><div className="font-bold text-sm">温馨提示</div><div className="text-sm">{message}</div></div>
+                        <button onClick={onClose} className="absolute top-2 right-2 opacity-60 hover:opacity-100"><X size={14}/></button>
+                    </div>
+                </div>
+            );
+        };
+
+        const TaskItem = ({ task, project, assigners, onUpdate, onDelete, onViewProject }) => {
+            const [showDatePicker, setShowDatePicker] = useState(false);
+            const [deleteConfirm, setDeleteConfirm] = useState(false);
+            const isOverdue = task.planDate && new Date(task.planDate) < new Date() && task.status !== 'completed';
+            const bgClass = task.status === 'completed' ? "bg-slate-50 opacity-60" : (task.isImportant ? "bg-yellow-50 border-yellow-200" : (isOverdue ? "bg-green-50 border-green-200" : "bg-white"));
+
+            return (
+                <div className={`group flex items-center gap-2 p-3 rounded-lg border ${bgClass} transition-all hover:shadow-md mb-2`}>
+                    <button onClick={() => onUpdate(task.id, { status: task.status === 'completed' ? 'active' : 'completed', completedAt: task.status === 'completed' ? null : new Date().toISOString() })} className="text-slate-300 hover:text-indigo-500">
+                        {task.status === 'completed' ? <CheckCircle size={20} className="fill-slate-200"/> : <Circle size={20}/>}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                        <input defaultValue={task.content} onBlur={(e) => { if(e.target.value!==task.content) onUpdate(task.id, {content: e.target.value}) }} className={`bg-transparent w-full outline-none ${task.status==='completed'?'line-through':''}`} />
+                        {project && <div onClick={onViewProject} className="text-xs text-slate-400 cursor-pointer hover:text-indigo-500">#{project.name}</div>}
+                    </div>
+                    <div className="hidden sm:block w-24"><input list={`as-${task.id}`} defaultValue={task.assigner} placeholder="对接人" onBlur={(e)=>onUpdate(task.id, {assigner:e.target.value})} className="bg-transparent w-full text-xs text-right outline-none placeholder:text-slate-300"/><datalist id={`as-${task.id}`}>{assigners.map(a=><option key={a} value={a}/>)}</datalist></div>
+                    <div onClick={() => setShowDatePicker(true)} className="w-24 text-right text-xs text-slate-500 cursor-pointer flex items-center justify-end gap-1"><Clock size={12}/>{task.planDate ? formatDate(task.planDate).split(' ')[0] + ' ' + formatDate(task.planDate).split(' ')[1] : '计划'}</div>
+                    <button onClick={() => onUpdate(task.id, {isImportant: !task.isImportant})} className="text-slate-300 hover:scale-110"><Star size={18} className={task.isImportant ? "fill-yellow-400 text-yellow-400" : ""}/></button>
+                    <button onClick={() => setDeleteConfirm(true)} className="text-slate-300 hover:text-red-500"><Trash2 size={16}/></button>
+                    <CustomDatePicker isOpen={showDatePicker} onClose={() => setShowDatePicker(false)} onSelect={(d) => onUpdate(task.id, { planDate: d })} initialDate={task.planDate}/>
+                    <ConfirmDialog isOpen={deleteConfirm} title="删除节点" message="确定要删除吗？" onConfirm={() => onDelete(task.id)} onCancel={() => setDeleteConfirm(false)}/>
+                </div>
+            );
+        };
+
+        const ProjectCard = ({ project, onClick, onDelete, onComplete, onUpdate }) => {
+            const [deleteConfirm, setDeleteConfirm] = useState(false);
+            const isWaitMe = project.waitStatus === 'wait_me';
+            let bgClass = project.status === 'completed' ? "bg-slate-50 border-slate-100 opacity-80" : (isWaitMe ? "bg-yellow-50 border-yellow-200" : "bg-white border-slate-100");
+
+            return (
+                <div className={`p-4 rounded-xl border shadow-sm hover:shadow-md transition-all group flex flex-col justify-between min-h-[160px] ${bgClass}`}>
+                    <div>
+                        <div className="flex justify-between items-start mb-2"><h3 onClick={onClick} className="font-bold text-slate-700 cursor-pointer hover:text-indigo-600 truncate flex-1">{project.name}</h3><button onClick={onComplete} className="text-slate-300 hover:text-indigo-500 ml-2"><Circle size={18}/></button></div>
+                        <p className="text-xs text-slate-400 line-clamp-2 h-8 mb-2">{project.note || '暂无备注'}</p>
+                    </div>
+                    <div className="flex justify-between items-center mt-2 border-t border-slate-200/50 pt-2">
+                        <span className="text-[10px] text-slate-300">{formatDate(project.createdAt).split(' ')[0]}</span>
+                        <div className="flex items-center gap-2">
+                            {project.status !== 'completed' && <select className={`text-[10px] font-bold outline-none border-none bg-transparent cursor-pointer ${isWaitMe?'text-yellow-600':'text-slate-400'}`} value={project.waitStatus||'normal'} onClick={e=>e.stopPropagation()} onChange={(e)=>onUpdate(project.id, {waitStatus:e.target.value})}><option value="normal">进行中</option><option value="wait_me">✋ 等我</option><option value="wait_him">👉 等他</option></select>}
+                            <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(true); }} className="text-slate-200 hover:text-red-400"><Trash2 size={14}/></button>
+                        </div>
+                    </div>
+                    <ConfirmDialog isOpen={deleteConfirm} title="删除项目" message="确定要删除项目及其任务吗？" onConfirm={() => onDelete(project.id)} onCancel={() => setDeleteConfirm(false)}/>
+                </div>
+            );
+        };
+
+        const ProjectEditView = ({ project, projectTasks, assigners, onBack, onUpdateProject, onCreateTask, onUpdateTask, onDeleteTask }) => {
+            const [newTaskContent, setNewTaskContent] = useState('');
+            const [newTaskAssigner, setNewTaskAssigner] = useState('');
+            const [localName, setLocalName] = useState(project?.name || '');
+            const [localNote, setLocalNote] = useState(project?.note || '');
+
+            useEffect(() => {
+                if (project) { setLocalName(project.name); setLocalNote(project.note); }
+            }, [project?.id]);
+
+            if (!project) return <div>项目不存在</div>;
+
+            const handleQuickAdd = (e) => {
+                if (e.key === 'Enter' && newTaskContent.trim()) {
+                    onCreateTask({ content: newTaskContent, projectId: project.id, assigner: newTaskAssigner, planDate: new Date().toISOString(), isImportant: false });
+                    setNewTaskContent('');
+                }
+            };
+
+            const isWaitMe = project.waitStatus === 'wait_me';
+
+            return (
+                <div className="animate-in">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-4"><button onClick={onBack}><ChevronLeft/></button><h2 className="text-2xl font-bold">项目详情</h2></div>
+                        <div className="flex items-center gap-2"><span className="text-xs">状态:</span><select className="text-sm border rounded px-2" value={project.waitStatus||'normal'} onChange={(e)=>onUpdateProject(project.id, {waitStatus:e.target.value})}><option value="normal">进行中</option><option value="wait_me">✋ 等我</option><option value="wait_him">👉 等他</option></select></div>
+                    </div>
+                    <div className={`p-6 rounded-2xl shadow-sm border mb-6 ${isWaitMe?'bg-yellow-50':'bg-white'}`}>
+                        <div className="mb-4"><label className="text-xs font-bold">项目名称</label><input className="w-full text-xl font-bold bg-transparent border-b" value={localName} onChange={e=>setLocalName(e.target.value)} onBlur={()=>localName!==project.name && onUpdateProject(project.id, {name:localName})}/></div>
+                        <div><label className="text-xs font-bold">备注</label><textarea className="w-full bg-white/50 border p-2 rounded" value={localNote} onChange={e=>setLocalNote(e.target.value)} onBlur={()=>localNote!==project.note && onUpdateProject(project.id, {note:localNote})}/></div>
+                    </div>
+                    <div className="bg-indigo-50 p-4 rounded-xl mb-6 flex items-center gap-3"><Plus/><input className="flex-1 bg-transparent" placeholder="输入任务..." value={newTaskContent} onChange={e=>setNewTaskContent(e.target.value)} onKeyDown={handleQuickAdd}/><input className="w-32 bg-white rounded px-2" placeholder="对接人" value={newTaskAssigner} onChange={e=>setNewTaskAssigner(e.target.value)} list="quick-as"/><datalist id="quick-as">{assigners.map(a=><option key={a} value={a}/>)}</datalist></div>
+                    <div className="space-y-1">{projectTasks.map(t => <TaskItem key={t.id} task={t} project={project} assigners={assigners} onUpdate={onUpdateTask} onDelete={onDeleteTask} onViewProject={()=>{}}/>)}</div>
+                </div>
+            );
+        };
+
+        const QuickCreateModal = ({ isOpen, onClose, projects, assigners, onCreate }) => {
+            const [content, setContent] = useState('');
+            const [projectId, setProjectId] = useState('');
+            const [assigner, setAssigner] = useState('');
+            const [planDate, setPlanDate] = useState('');
+            const [isImportant, setIsImportant] = useState(false);
+            const [showDatePicker, setShowDatePicker] = useState(false);
+
+            if(!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black/30 z-40 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl animate-in relative">
+                        <button onClick={onClose} className="absolute top-4 right-4"><X/></button>
+                        <h2 className="text-xl font-bold mb-4">⚡ 快捷创建</h2>
+                        <div className="space-y-4">
+                            <input value={content} onChange={e=>setContent(e.target.value)} className="w-full p-3 border rounded" placeholder="做什么..." autoFocus/>
+                            <div className="grid grid-cols-2 gap-4">
+                                <select value={projectId} onChange={e=>setProjectId(e.target.value)} className="w-full p-2 border rounded"><option value="">-- 选择项目 --</option>{projects.filter(p=>p.status==='active').map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
+                                <input value={assigner} onChange={e=>setAssigner(e.target.value)} className="w-full p-2 border rounded" placeholder="对接人" list="modal-as"/><datalist id="modal-as">{assigners.map(a=><option key={a} value={a}/>)}</datalist>
+                            </div>
+                            <div className="flex gap-4">
+                                <button onClick={()=>setShowDatePicker(true)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded text-sm"><CalendarIcon size={16}/>{planDate?formatDate(planDate):'时间'}</button>
+                                <button onClick={()=>setIsImportant(!isImportant)} className={`flex items-center gap-2 px-4 py-2 rounded text-sm border ${isImportant?'bg-yellow-50 border-yellow-300':''}`}><Star size={16}/>重要</button>
+                            </div>
+                        </div>
+                        <button onClick={()=>{if(content){onCreate({content, projectId, assigner, planDate: planDate||new Date().toISOString(), isImportant}); setContent(''); onClose();}}} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded font-bold">创建</button>
+                        <CustomDatePicker isOpen={showDatePicker} onClose={()=>setShowDatePicker(false)} onSelect={setPlanDate}/>
+                    </div>
+                </div>
+            )
+        };
+
+        const MainTab = ({ tasks, projects, assigners, onUpdateTask, onDeleteTask, onViewProject, onCreateProject, onDeleteProject, onUpdateProject }) => {
+            const important = tasks.filter(t => t.status !== 'completed' && t.isImportant);
+            const overdue = tasks.filter(t => t.status !== 'completed' && !t.isImportant && t.planDate && new Date(t.planDate) < new Date());
+            const activeProjects = projects.filter(p => p.status === 'active');
+            
+            return (
+                <div className="space-y-8 animate-in">
+                    <section><h3 className="font-bold mb-2 flex items-center gap-2 text-slate-800"><Star className="fill-yellow-400 text-yellow-400" size={20}/>重要节点</h3><div className="grid gap-2">{important.map(t=><TaskItem key={t.id} task={t} project={projects.find(p=>p.id===t.projectId)} assigners={assigners} onUpdate={onUpdateTask} onDelete={onDeleteTask} onViewProject={()=>onViewProject(t.projectId)}/>)}</div></section>
+                    <section><h3 className="font-bold mb-2 flex items-center gap-2 text-slate-800"><Clock className="text-green-500" size={20}/>逾期节点</h3><div className="grid gap-2">{overdue.map(t=><TaskItem key={t.id} task={t} project={projects.find(p=>p.id===t.projectId)} assigners={assigners} onUpdate={onUpdateTask} onDelete={onDeleteTask} onViewProject={()=>onViewProject(t.projectId)}/>)}</div></section>
+                    <section><h3 className="font-bold mb-2 text-slate-800">进行中项目</h3><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">{activeProjects.map(p=><ProjectCard key={p.id} project={p} onClick={()=>onViewProject(p.id)} onDelete={onDeleteProject} onComplete={()=>onUpdateProject(p.id, {status:'completed'})} onUpdate={onUpdateProject}/>)}<button onClick={onCreateProject} className="border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-slate-400 h-32 hover:border-indigo-300 hover:text-indigo-500"><Plus size={32}/><span className="text-sm mt-2">创建新项目</span></button></div></section>
+                </div>
+            );
+        };
+
+        const HistoryTab = ({ tasks, projects, assigners, onUpdateTask, onDeleteTask, onViewProject }) => {
+            const completed = tasks.filter(t => t.status === 'completed');
+            const grouped = completed.reduce((acc, t) => {
+                const d = new Date(t.completedAt || t.createdAt).toLocaleDateString();
+                if(!acc[d]) acc[d] = []; acc[d].push(t); return acc;
+            }, {});
+            return <div className="space-y-6 animate-in"><h2 className="text-xl font-bold">已执行节点</h2>{Object.keys(grouped).sort((a,b)=>new Date(b)-new Date(a)).map(d=><div key={d}><div className="flex items-center gap-4 mb-2"><span className="bg-slate-200 px-3 py-1 rounded text-xs font-bold">{d}</span><div className="h-px bg-slate-100 flex-1"></div></div><div className="space-y-1 pl-4">{grouped[d].map(t=><TaskItem key={t.id} task={t} project={projects.find(p=>p.id===t.projectId)} assigners={assigners} onUpdate={onUpdateTask} onDelete={onDeleteTask} onViewProject={()=>onViewProject(t.projectId)}/>)}</div></div>)}</div>
+        };
+
+        const CompletedProjectsTab = ({ projects, onViewProject, onDeleteProject, onUpdateProject }) => {
+            const completed = projects.filter(p => p.status === 'completed');
+            return <div className="animate-in"><h2 className="text-xl font-bold mb-6">已完成项目</h2><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">{completed.map(p=><ProjectCard key={p.id} project={p} onClick={()=>onViewProject(p.id)} onDelete={onDeleteProject} onComplete={()=>onUpdateProject(p.id, {status:'active'})} onUpdate={onUpdateProject}/>)}</div></div>
+        };
+
+        const WeeklyReportTab = ({ tasks, projects, onUpdateTask }) => {
+            const [currentWeekStart, setCurrentWeekStart] = useState(() => getStartOfWeek(new Date()));
+            const changeWeek = (w) => setCurrentWeekStart(new Date(new Date(currentWeekStart).setDate(currentWeekStart.getDate() + w*7)));
+            const weekDays = Array.from({length:5}, (_,i) => { const d = new Date(currentWeekStart); d.setDate(d.getDate()+i); return d; });
+            
+            return (
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden animate-in">
+                    <div className="p-4 border-b flex justify-between items-center bg-slate-50">
+                        <div className="flex items-center gap-2"><button onClick={()=>changeWeek(-1)}><ChevronLeft/></button><span className="font-bold text-sm w-48 text-center">{weekDays[0].toLocaleDateString()} - {weekDays[4].toLocaleDateString()}</span><button onClick={()=>changeWeek(1)}><ChevronRight/></button></div>
+                        <button onClick={()=>setCurrentWeekStart(getStartOfWeek(new Date()))} className="text-xs text-indigo-600 bg-indigo-50 px-3 py-1 rounded">本周</button>
+                    </div>
+                    <div className="grid grid-cols-5 border-b text-center p-2 bg-slate-50 text-sm font-bold text-slate-700">{['一','二','三','四','五'].map((d,i)=> <div key={d}>{d}<div className="text-xs font-normal text-slate-400">{weekDays[i].getDate()}</div></div>)}</div>
+                    <div className="grid grid-cols-5 min-h-[400px] divide-x">{weekDays.map(d => {
+                        const dayTasks = tasks.filter(t => t.planDate && isSameDay(new Date(t.planDate), d));
+                        return <div key={d} className="p-2 space-y-2">{dayTasks.map(t => {
+                            const p = projects.find(pr=>pr.id===t.projectId);
+                            return <div key={t.id} onClick={()=>onUpdateTask(t.id, {status: t.status==='completed'?'active':'completed', completedAt: new Date().toISOString()})} className="bg-indigo-50 p-2 rounded text-xs cursor-pointer border border-indigo-100 hover:bg-indigo-100"><div className="flex gap-1"><div className={`w-2 h-2 mt-1 rounded-full ${t.status==='completed'?'bg-indigo-400':'border border-indigo-400'}`}></div><span className={t.status==='completed'?'line-through opacity-50':''}>{t.content}</span></div>{p && <div className="text-[10px] text-right text-slate-400">#{p.name}</div>}</div>
+                        })}</div>
+                    })}</div>
+                </div>
+            )
+        };
+
+        // --- App ---
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [projects, setProjects] = useState([]);
+            const [tasks, setTasks] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [currentTab, setCurrentTab] = useState('main');
+            const [editingProjectId, setEditingProjectId] = useState(null);
+            const [showQuickCreate, setShowQuickCreate] = useState(false);
+            const [showSettings, setShowSettings] = useState(false);
+            const [greeting, setGreeting] = useState(null);
+            const [showAiModal, setShowAiModal] = useState(false);
+            const [aiSettings, setAiSettings] = useState({ 
+                apiKey: localStorage.getItem('cyber_ox_ai_key') || '', 
+                baseUrl: localStorage.getItem('cyber_ox_ai_url') || 'https://api.deepseek.com',
+                model: localStorage.getItem('cyber_ox_ai_model') || 'deepseek-chat',
+                customPrompt: localStorage.getItem('cyber_ox_ai_prompt') || ''
+            });
+
+            const assigners = useMemo(() => [...new Set(tasks.map(t => t.assigner).filter(Boolean))], [tasks]);
+
+            // 认证与初始化
+            useEffect(() => {
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await auth.signInWithCustomToken(__initial_auth_token);
+                    } else {
+                        await auth.signInAnonymously();
+                    }
+                };
+                initAuth();
+                
+                const unsubscribe = auth.onAuthStateChanged((u) => {
+                    if (u) { 
+                        setUser(u); 
+                        setLoading(false); 
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            // 数据监听 (使用 Compat 语法 + 独立路径)
+            useEffect(() => {
+                if(!user) return;
+                
+                // 路径规则: artifacts/{appId}/users/{userId}/...
+                const projectsRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('projects');
+                const tasksRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('tasks');
+
+                const unsubProjects = projectsRef.orderBy('createdAt', 'desc').onSnapshot((snapshot) => {
+                    setProjects(snapshot.docs.map(d => ({id: d.id, ...d.data()})));
+                }, (error) => console.error("Projects Error:", error));
+
+                const unsubTasks = tasksRef.orderBy('planDate', 'asc').onSnapshot((snapshot) => {
+                    setTasks(snapshot.docs.map(d => ({id: d.id, ...d.data()})));
+                }, (error) => console.error("Tasks Error:", error));
+
+                return () => { unsubProjects(); unsubTasks(); };
+            }, [user]);
+
+            // 定时问候
+            useEffect(() => {
+                const t = setInterval(() => { if(new Date().getMinutes()===0) { setGreeting(GREETINGS[Math.floor(Math.random()*GREETINGS.length)]); setTimeout(()=>setGreeting(null), 8000); } }, 10000);
+                return () => clearInterval(t);
+            }, []);
+
+            const saveAiSettings = (s) => {
+                setAiSettings(s);
+                localStorage.setItem('cyber_ox_ai_key', s.apiKey);
+                localStorage.setItem('cyber_ox_ai_url', s.baseUrl);
+                localStorage.setItem('cyber_ox_ai_model', s.model);
+                localStorage.setItem('cyber_ox_ai_prompt', s.customPrompt);
+            };
+
+            // Firestore 操作封装 (Compat 语法)
+            const getProjectsRef = () => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('projects');
+            const getTasksRef = () => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('tasks');
+
+            const handleCreateProject = async () => {
+                if (!user) return;
+                const newProject = {
+                    name: '新项目 '+new Date().toLocaleDateString(), 
+                    note: '', 
+                    status: 'active', 
+                    waitStatus:'normal', 
+                    createdAt: new Date().toISOString()
+                };
+                const docRef = await getProjectsRef().add(newProject);
+                setEditingProjectId(docRef.id);
+            };
+
+            const handleCreateTask = async (d) => {
+                if (!user) return;
+                await getTasksRef().add({
+                    ...d, 
+                    status: 'active', 
+                    createdAt: new Date().toISOString(), 
+                    completedAt: null
+                });
+            };
+
+            const handleUpdateTask = async (id, d) => {
+                if (!user) return;
+                await getTasksRef().doc(id).update(d);
+            };
+
+            const handleDeleteTask = async (id) => {
+                if (!user) return;
+                await getTasksRef().doc(id).delete();
+            };
+
+            const handleUpdateProject = async (id, d) => {
+                if (!user) return;
+                await getProjectsRef().doc(id).update(d);
+            };
+
+            const handleDeleteProject = async (id) => {
+                if (!user) return;
+                const batch = db.batch();
+                // 删除项目
+                batch.delete(getProjectsRef().doc(id));
+                // 删除关联任务
+                const relatedTasks = tasks.filter(t => t.projectId === id);
+                relatedTasks.forEach(t => {
+                    batch.delete(getTasksRef().doc(t.id));
+                });
+                await batch.commit();
+                if(editingProjectId === id) setEditingProjectId(null);
+            };
+
+            const handleBackup = () => {
+                const blob = new Blob([JSON.stringify({projects, tasks}, null, 2)], {type:'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+            };
+
+            const handleRestore = () => {
+                const input = document.createElement('input'); input.type = 'file';
+                input.onchange = e => {
+                    const r = new FileReader();
+                    r.onload = async (ev) => {
+                        if (!user) return;
+                        const d = JSON.parse(ev.target.result);
+                        const batch = db.batch();
+                        const pMap = {};
+                        
+                        // 恢复项目
+                        if(Array.isArray(d.projects)) {
+                            d.projects.forEach(p => { 
+                                const newRef = getProjectsRef().doc();
+                                pMap[p.id] = newRef.id; 
+                                const { id, ...data } = p; // 移除旧 ID
+                                batch.set(newRef, data); 
+                            });
+                        }
+                        
+                        // 恢复任务
+                        if(Array.isArray(d.tasks)) {
+                            d.tasks.forEach(t => { 
+                                const newRef = getTasksRef().doc();
+                                const { id, projectId, ...data } = t; // 移除旧 ID 和 ProjectID
+                                batch.set(newRef, {
+                                    ...data,
+                                    projectId: pMap[projectId] || projectId // 映射到新 Project ID
+                                }); 
+                            });
+                        }
+                        
+                        await batch.commit();
+                        alert("恢复成功");
+                    };
+                    r.readAsText(e.target.files[0]);
+                };
+                input.click();
+            };
+
+            if (loading) return <div className="h-screen flex justify-center items-center text-slate-400">Loading...</div>;
+
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans text-slate-600 pb-20">
+                     <header className="bg-white sticky top-0 z-30 border-b border-slate-100 shadow-sm px-4 md:px-8 h-16 flex items-center justify-between">
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-indigo-600 text-white w-8 h-8 flex items-center justify-center rounded-lg font-bold text-lg">牛</div>
+                                <h1 className="font-bold text-xl tracking-tight text-slate-800 hidden md:block">赛博牛马的逆袭</h1>
+                            </div>
+                            <nav className="hidden md:flex items-center gap-1 bg-slate-100/50 p-1 rounded-lg">
+                                {[{id:'main', l:'主页面'},{id:'history', l:'已执行'},{id:'completedProjects', l:'完工项目'},{id:'weekly', l:'周报'}].map(t => (
+                                    <button key={t.id} onClick={()=>{setCurrentTab(t.id); setEditingProjectId(null)}} className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${currentTab===t.id && !editingProjectId ? 'bg-white text-indigo-600 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>{t.l}</button>
+                                ))}
+                            </nav>
+                            <div className="md:hidden flex gap-2">
+                                <select value={currentTab} onChange={e=>{setCurrentTab(e.target.value); setEditingProjectId(null)}} className="bg-slate-100 rounded px-2 py-1 text-sm outline-none">
+                                    <option value="main">主页面</option><option value="history">已执行</option><option value="completedProjects">完工项目</option><option value="weekly">周报</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="hidden sm:flex items-center gap-1 text-[10px] bg-slate-50 px-2 py-1 rounded-full border border-slate-100">
+                                {user ? <Wifi size={12} className="text-green-500" /> : <WifiOff size={12} className="text-red-500" />}
+                                <span className={user ? "text-slate-500 font-medium" : "text-red-500"}>{user ? "云海之上" : "离线"}</span>
+                            </div>
+                            <button onClick={()=>setShowAiModal(true)} className="flex items-center gap-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white px-3 py-2 rounded text-sm font-bold shadow hover:-translate-y-0.5"><Brain size={16}/>AI 军师</button>
+                            <button onClick={handleCreateProject} className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded text-sm font-bold hidden sm:block">创建项目</button>
+                            <button onClick={()=>setShowQuickCreate(true)} className="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-bold shadow hover:-translate-y-0.5">快捷创建</button>
+                            <div className="relative">
+                                <button onClick={()=>setShowSettings(!showSettings)} className="p-2 text-slate-400 hover:text-slate-600"><Settings size={20}/></button>
+                                {showSettings && (
+                                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border p-4 z-50 animate-in">
+                                        <div className="text-xs font-bold text-slate-500 mb-2 uppercase">AI 设置</div>
+                                        <input className="w-full text-xs p-2 border rounded mb-2" placeholder="API Key" value={aiSettings.apiKey} onChange={e=>saveAiSettings({...aiSettings, apiKey:e.target.value})}/>
+                                        <input className="w-full text-xs p-2 border rounded mb-2" placeholder="Base URL" value={aiSettings.baseUrl} onChange={e=>saveAiSettings({...aiSettings, baseUrl:e.target.value})}/>
+                                        <input className="w-full text-xs p-2 border rounded mb-2" placeholder="Model Name" value={aiSettings.model} onChange={e=>saveAiSettings({...aiSettings, model:e.target.value})}/>
+                                        <div className="text-xs font-bold text-slate-500 mb-1 mt-2 uppercase">自定义指令</div>
+                                        <textarea className="w-full text-xs p-2 border rounded h-20 resize-none" placeholder="输入Prompt..." value={aiSettings.customPrompt} onChange={e=>saveAiSettings({...aiSettings, customPrompt:e.target.value})}/>
+                                        <div className="border-t my-2 pt-2 flex justify-between">
+                                            <button onClick={handleBackup} className="text-xs hover:bg-slate-50 px-2 py-1 rounded">💾 备份</button>
+                                            <button onClick={handleRestore} className="text-xs hover:bg-slate-50 px-2 py-1 rounded">📂 恢复</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+                        {editingProjectId ? (
+                            <ProjectEditView project={projects.find(p=>p.id===editingProjectId)} projectTasks={tasks.filter(t=>t.projectId===editingProjectId)} assigners={assigners} onBack={()=>setEditingProjectId(null)} onUpdateProject={handleUpdateProject} onCreateTask={handleCreateTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask}/>
+                        ) : (
+                            <>
+                                {currentTab==='main' && <MainTab tasks={tasks} projects={projects} assigners={assigners} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onViewProject={setEditingProjectId} onCreateProject={handleCreateProject} onDeleteProject={handleDeleteProject} onUpdateProject={handleUpdateProject}/>}
+                                {currentTab==='history' && <HistoryTab tasks={tasks} projects={projects} assigners={assigners} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onViewProject={setEditingProjectId}/>}
+                                {currentTab==='completedProjects' && <CompletedProjectsTab projects={projects} onViewProject={setEditingProjectId} onDeleteProject={handleDeleteProject} onUpdateProject={handleUpdateProject}/>}
+                                {currentTab==='weekly' && <WeeklyReportTab tasks={tasks} projects={projects} onUpdateTask={handleUpdateTask}/>}
+                            </>
+                        )}
+                    </main>
+
+                    <QuickCreateModal isOpen={showQuickCreate} onClose={()=>setShowQuickCreate(false)} projects={projects} assigners={assigners} onCreate={handleCreateTask}/>
+                    <GreetingPopup isOpen={!!greeting} message={greeting} onClose={()=>setGreeting(null)}/>
+                    <AIAnalysisModal isOpen={showAiModal} onClose={()=>setShowAiModal(false)} tasks={tasks} projects={projects} aiSettings={aiSettings}/>
+                </div>
+            )
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
