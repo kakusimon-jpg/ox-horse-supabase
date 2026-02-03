@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>赛博牛马的逆袭 - Supabase 军师版</title>
+    <title>赛博牛马的逆袭 - 布局优化版</title>
     
     <!-- iOS 主屏幕图标 -->
     <link rel="apple-touch-icon" sizes="512x512" href="https://ui-avatars.com/api/?name=%E7%89%9B&background=6366f1&color=ffffff&size=512&length=1&font-size=0.55&bold=true&v=refresh_final">
@@ -83,7 +83,8 @@
             Bot, ArrowRight, Link as LinkIcon, ExternalLink, Download, Upload, Star,
             CheckCircle2, ListChecks, FileText, Truck, Coins, ClipboardCheck, Coffee, Smile,
             LayoutGrid, List, Search, Server, Cpu, BrainCircuit, ShieldAlert, Layers, HeartPulse, 
-            PartyPopper, MessageCircle, Database, UserCheck, Terminal, Copy, AlertTriangle, Menu
+            PartyPopper, MessageCircle, Database, UserCheck, Terminal, Copy, AlertTriangle, Menu,
+            Hourglass, HandMetal, ScanSearch
         } from 'https://esm.sh/lucide-react@0.344.0';
 
         // --- Supabase Configuration ---
@@ -118,18 +119,15 @@
 
         // --- 常量配置 ---
         const urgencyConfig = {
+            wait_me: { label: '等我', color: 'bg-red-50 text-red-600', dot: 'bg-red-600', icon: User },
+            wait_him: { label: '等他', color: 'bg-blue-50 text-blue-600', dot: 'bg-blue-600', icon: Hourglass },
+            completed: { label: '已完成', color: 'bg-slate-100 text-slate-500', dot: 'bg-slate-500', icon: CheckCircle2 },
+            // Legacy fallbacks
             quote: { label: '报价', color: 'bg-sky-50 text-sky-600', dot: 'bg-sky-600', icon: FileText },
             order: { label: '订单', color: 'bg-violet-50 text-violet-600', dot: 'bg-violet-600', icon: ClipboardCheck },
             shipping: { label: '发货', color: 'bg-amber-50 text-amber-600', dot: 'bg-amber-600', icon: Truck },
             payment: { label: '收款', color: 'bg-emerald-50 text-emerald-600', dot: 'bg-emerald-600', icon: Coins },
-            completed: { label: '已完成', color: 'bg-slate-100 text-slate-500', dot: 'bg-slate-500', icon: CheckCircle2 },
-            
-            // 兼容旧数据
-            contract: { label: '合同(旧)', color: 'bg-indigo-50 text-indigo-600', dot: 'bg-indigo-600', icon: Briefcase },
-            acceptance: { label: '验收(旧)', color: 'bg-emerald-50 text-emerald-600', dot: 'bg-emerald-600' },
-            high: { label: '紧急(旧)', color: 'bg-[#FFEFED] text-[#F56C6C]', dot: 'bg-[#F56C6C]', dot: 'bg-[#F56C6C]' },
-            medium: { label: '重要(旧)', color: 'bg-[#FFF7E6] text-[#FA8C16]', dot: 'bg-[#FA8C16]', dot: 'bg-[#FA8C16]' },
-            normal: { label: '普通(旧)', color: 'bg-[#E6F7FF] text-[#4A90E2]', dot: 'bg-[#4A90E2]', dot: 'bg-[#4A90E2]' },
+            normal: { label: '普通', color: 'bg-slate-50 text-slate-500', dot: 'bg-slate-500' },
         };
 
         const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -149,12 +147,12 @@
             if (!val) return new Date();
             if (typeof val === 'string') return new Date(val);
             if (typeof val === 'number') return new Date(val);
-            if (val && val.seconds) return new Date(val.seconds * 1000); // Legacy Timestamp
+            if (val && val.seconds) return new Date(val.seconds * 1000); 
             if (val instanceof Date) return val;
             return new Date();
         };
 
-        // --- AI & Utility Functions (略微省略，逻辑不变) ---
+        // --- AI API ---
         const callAI = async (apiKey, baseUrl, model, prompt, expectJson = true) => {
             let apiUrl = baseUrl || "https://api.siliconflow.cn/v1";
             if (!apiUrl.endsWith('/')) apiUrl += '/';
@@ -181,7 +179,7 @@
             }
         };
 
-        // --- 组件 ---
+        // --- Shared Components ---
         const GlobalSearchBar = ({ tasks, onSelectTask, onSelectAssignee }) => {
             const [query, setQuery] = useState('');
             const [suggestions, setSuggestions] = useState([]);
@@ -240,41 +238,18 @@
             );
         };
 
-        // --- Setup Guide Modal ---
         const SetupGuideModal = ({ isOpen, onClose }) => {
             if (!isOpen) return null;
-            const sqlCode = `create table if not exists public.tasks (
-  id text primary key,
-  title text,
-  "customerName" text,
-  summary text,
-  urgency text,
-  nodes jsonb,
-  "createdAt" timestamptz default now()
-);
-alter publication supabase_realtime add table public.tasks;
-alter table public.tasks enable row level security;
-create policy "Public Access" on public.tasks for all using (true) with check (true);`;
-
+            const sqlCode = `create table if not exists public.tasks (id text primary key,title text,"customerName" text,summary text,urgency text,nodes jsonb,"createdAt" timestamptz default now());alter publication supabase_realtime add table public.tasks;alter table public.tasks enable row level security;create policy "Public Access" on public.tasks for all using (true) with check (true);`;
             const handleCopy = () => { navigator.clipboard.writeText(sqlCode); alert("代码已复制！请前往 Supabase 后台运行。"); };
-
             return (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in zoom-in">
                     <div className="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full p-8 border flex flex-col h-[80vh]">
-                        <div className="flex items-start gap-4 mb-6">
-                            <div className="p-3 bg-indigo-100 rounded-2xl text-indigo-600"><Database size={32}/></div>
-                            <div>
-                                <h3 className="text-2xl font-black text-slate-800">数据库初始化</h3>
-                                <p className="text-sm text-slate-500 mt-1 font-medium">老细，Supabase 还没检测到 <code className="bg-slate-100 px-1 rounded text-slate-700">tasks</code> 表。请按照以下步骤激活数据库。</p>
-                            </div>
-                        </div>
+                        <div className="flex items-start gap-4 mb-6"><div className="p-3 bg-indigo-100 rounded-2xl text-indigo-600"><Database size={32}/></div><div><h3 className="text-2xl font-black text-slate-800">数据库初始化</h3><p className="text-sm text-slate-500 mt-1 font-medium">老细，Supabase 还没检测到 <code className="bg-slate-100 px-1 rounded text-slate-700">tasks</code> 表。请按照以下步骤激活数据库。</p></div></div>
                         <div className="flex-1 overflow-y-auto space-y-6 pr-2">
                              <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-100 rounded-2xl"><span className="bg-yellow-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0">1</span><p className="text-sm text-yellow-800 font-bold">登录 <a href="https://supabase.com/dashboard" target="_blank" className="underline hover:text-yellow-900">Supabase Dashboard</a>，进入 SQL Editor。</p></div>
                              <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-100 rounded-2xl"><span className="bg-yellow-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0">2</span><p className="text-sm text-yellow-800 font-bold">复制下方 SQL 代码并运行 (Run)。</p></div>
-                            <div className="relative group">
-                                <div className="absolute top-3 right-3"><button onClick={handleCopy} className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all border border-white/10"><Copy size={14}/> 复制 SQL</button></div>
-                                <pre className="bg-slate-900 text-slate-300 p-6 rounded-2xl text-xs font-mono overflow-x-auto leading-relaxed border border-slate-700 shadow-inner">{sqlCode}</pre>
-                            </div>
+                            <div className="relative group"><div className="absolute top-3 right-3"><button onClick={handleCopy} className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all border border-white/10"><Copy size={14}/> 复制 SQL</button></div><pre className="bg-slate-900 text-slate-300 p-6 rounded-2xl text-xs font-mono overflow-x-auto leading-relaxed border border-slate-700 shadow-inner">{sqlCode}</pre></div>
                         </div>
                         <div className="mt-6 pt-6 border-t border-slate-100 flex justify-end gap-3"><button onClick={()=>window.location.reload()} className="px-6 py-3 bg-[#4A90E2] text-white rounded-xl text-sm font-black shadow-lg shadow-blue-100 hover:bg-[#357ABD] transition-all flex items-center gap-2"><CheckCircle size={18}/> 我已运行，刷新页面</button></div>
                     </div>
@@ -302,68 +277,128 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
         const AutocompleteInput = ({ value, onChange, options, placeholder, className }) => { const [showOptions, setShowOptions] = useState(false); const wrapperRef = useRef(null); useEffect(() => { function handleClickOutside(event) { if (wrapperRef.current && !wrapperRef.current.contains(event.target)) setShowOptions(false); } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, [wrapperRef]); const filteredOptions = useMemo(() => options ? Array.from(new Set(options)).filter(opt => !value || opt.toLowerCase().includes(value.toLowerCase())) : [], [options, value]); return (<div className="relative inline-block w-full" ref={wrapperRef}><div className="relative"><CompositionInput value={value} onChange={(e) => { onChange(e); setShowOptions(true); }} onFocus={() => setShowOptions(true)} className={`${className} pr-6`} placeholder={placeholder} /><div className="absolute right-1 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 hover:text-[#4A90E2] p-1" onClick={(e) => { e.stopPropagation(); setShowOptions(!showOptions); }}><ChevronDown size={14} /></div></div>{showOptions && filteredOptions.length > 0 && (<div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto w-full">{filteredOptions.map((opt, index) => (<div key={`${opt}-${index}`} className="px-3 py-2 text-sm cursor-pointer border-b border-slate-50 last:border-0 hover:bg-[#E6F7FF] hover:text-[#4A90E2]" onClick={() => { onChange({ target: { value: opt } }); setShowOptions(false); }}>{opt}</div>))}</div>)}</div>); };
         const CompositionTextarea = ({ value, onChange, className, ...props }) => { const [innerValue, setInnerValue] = useState(value); const [isComposing, setIsComposing] = useState(false); useEffect(() => { if (!isComposing) setInnerValue(value); }, [value, isComposing]); return <textarea {...props} value={innerValue} onCompositionStart={() => setIsComposing(true)} onCompositionEnd={(e) => { setIsComposing(false); setInnerValue(e.target.value); onChange(e); }} onChange={(e) => { setInnerValue(e.target.value); if (!isComposing) onChange(e); }} className={`transition-all duration-200 outline-none ${className}`}/>; };
 
-        // --- Date Picker & AI Modal & Quick Add ---
-        const DateTimePicker = ({ initialDate, onSelect, onClose, isDateOnly = false }) => {
-            const [currentMonth, setCurrentMonth] = useState(safeDate(initialDate));
-            const [selectedDate, setSelectedDate] = useState(initialDate ? safeDate(initialDate) : new Date());
-            const [selectedHour, setSelectedHour] = useState(new Date().getHours());
-            const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
-            const offset = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay() || 7; 
-            const handleConfirm = () => { if (!selectedDate) return; const final = new Date(selectedDate); final.setHours(isDateOnly ? 0 : selectedHour, 0, 0, 0); onSelect(final.getTime()); onClose(); };
+        // --- AI Analysis Components ---
+        const ProjectAIModal = ({ task, onClose }) => {
+            const [data, setData] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(null);
+            useEffect(() => {
+                const analyze = async () => {
+                    const apiKey = localStorage.getItem('ai_api_key'); const baseUrl = localStorage.getItem('ai_base_url'); const model = localStorage.getItem('ai_model');
+                    if (!apiKey) { setError("请先在设置中填入 API Key"); setLoading(false); return; }
+                    
+                    const prompt = `你是一位经验丰富的项目经理和技术顾问。请针对以下项目进行“查漏补缺”和“风险评估”。
+                    项目名称：${task.title}
+                    客户：${task.customerName || '未知'}
+                    备注信息：${task.summary || '无'}
+                    当前已有执行节点：${task.nodes.map(n => `[${n.completed?'已完成':'待办'}] ${n.text}`).join('; ')}。
+                    
+                    请返回纯 JSON 格式：
+                    {
+                        "missingSteps": ["建议补充步骤1", "建议补充步骤2"],
+                        "optimizations": ["优化建议1", "优化建议2"],
+                        "risks": ["潜在风险1", "潜在风险2"]
+                    }`;
+
+                    try { const res = await callAI(apiKey, baseUrl, model, prompt, true); setData(res); } catch (e) { setError(e.message); } finally { setLoading(false); }
+                };
+                analyze();
+            }, [task]);
+
             return (
-                <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full border border-slate-100 overflow-hidden">
-                        <div className="grid grid-cols-1 sm:grid-cols-2">
-                            <div className="p-5 sm:border-r border-slate-100">
-                                <div className="flex justify-between items-center mb-4"><button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}><ChevronLeft size={18}/></button><span className="font-bold text-slate-700">{currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月</span><button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}><ChevronRight size={18}/></button></div>
-                                <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2 text-slate-400 font-bold">{['一','二','三','四','五','六','日'].map(d => <div key={d}>{d}</div>)}</div>
-                                <div className="grid grid-cols-7 gap-1">{Array.from({ length: offset === 7 ? 6 : offset - 1 }).map((_, i) => <div key={i} />)}{Array.from({ length: daysInMonth }).map((_, i) => { const day = i + 1; const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day); const isSelected = selectedDate?.toDateString() === date.toDateString(); return <button key={day} onClick={() => { setSelectedDate(date); if (isDateOnly) { const f = new Date(date); f.setHours(0,0,0,0); onSelect(f.getTime()); onClose(); } }} className={`h-9 w-9 rounded-full text-sm font-bold transition-all ${isSelected ? 'bg-[#4A90E2] text-white shadow-lg' : 'hover:bg-slate-50 text-slate-600'}`}>{day}</button>; })}</div>
-                            </div>
-                            {!isDateOnly && (
-                                <div className="p-5 bg-slate-50/50 flex flex-col">
-                                    <h4 className="text-xs font-black text-[#4A90E2] mb-3 flex items-center gap-1 uppercase"><Clock size={14}/> 设置具体时段</h4>
-                                    <div className="grid grid-cols-3 gap-2 overflow-y-auto max-h-48 pr-1 flex-1 no-scrollbar">{TIME_HOURS.map(h => (<button key={h} onClick={() => setSelectedHour(h)} className={`py-2 rounded-xl text-xs font-bold transition-all ${selectedHour === h ? 'bg-[#4A90E2] text-white shadow-md' : 'bg-white border text-slate-500 hover:bg-white hover:border-[#4A90E2]'}`}>{h.toString().padStart(2,'0')}:00</button>))}</div>
-                                    <div className="mt-5 flex justify-end gap-2 pt-3 border-t"><button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-400 hover:text-slate-600">取消</button><button onClick={handleConfirm} className="px-4 py-2 bg-[#4A90E2] text-white rounded-xl text-sm font-bold shadow-md hover:bg-[#357ABD]">确定</button></div>
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[85vh]">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-pink-50">
+                            <div><h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><Sparkles className="text-purple-600"/> 项目查漏补缺</h3><p className="text-xs text-slate-500 font-bold mt-1">针对 {task.title} 的智能分析</p></div>
+                            <button onClick={onClose} className="p-2 hover:bg-white/50 rounded-full transition-colors"><X size={24} className="text-slate-400"/></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6 bg-[#F8FAFC]">
+                            {loading ? <div className="h-40 flex flex-col items-center justify-center text-slate-400 gap-3"><Loader2 size={32} className="animate-spin"/><span className="text-xs font-bold">正在根据当前节点推演遗漏步骤...</span></div> :
+                             error ? <div className="text-red-500 font-bold text-center p-4">{error}</div> :
+                             data ? (
+                                <div className="space-y-6">
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm"><h4 className="text-sm font-black text-indigo-600 mb-3 flex items-center gap-2"><ScanSearch size={16}/> 建议补充的步骤</h4><ul className="space-y-2">{data.missingSteps?.map((s,i)=><li key={i} className="flex gap-2 text-sm text-slate-700 font-medium"><span className="text-indigo-400">•</span>{s}</li>)}</ul></div>
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm"><h4 className="text-sm font-black text-emerald-600 mb-3 flex items-center gap-2"><Zap size={16}/> 优化建议</h4><ul className="space-y-2">{data.optimizations?.map((s,i)=><li key={i} className="flex gap-2 text-sm text-slate-700 font-medium"><span className="text-emerald-400">•</span>{s}</li>)}</ul></div>
+                                    <div className="bg-white p-5 rounded-2xl border border-red-50 shadow-sm"><h4 className="text-sm font-black text-red-600 mb-3 flex items-center gap-2"><AlertTriangle size={16}/> 潜在风险</h4><ul className="space-y-2">{data.risks?.map((s,i)=><li key={i} className="flex gap-2 text-sm text-slate-700 font-medium"><span className="text-red-400">⚠️</span>{s}</li>)}</ul></div>
                                 </div>
-                            )}
+                             ) : null}
                         </div>
                     </div>
                 </div>
             );
         };
 
-        const AIAnalysisModal = ({ tasks, onClose }) => {
+        const GlobalAIModal = ({ tasks, onClose }) => {
             const [data, setData] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(null);
             useEffect(() => {
                 const analyze = async () => {
-                    const apiKey = localStorage.getItem('ai_api_key'); const baseUrl = localStorage.getItem('ai_base_url'); const model = localStorage.getItem('ai_model'); const userSystemPrompt = localStorage.getItem('ai_system_prompt') || '';
-                    if (!apiKey) { setError("请先在设置中填入 SiliconFlow API Key"); setLoading(false); return; }
-                    const context = tasks.map(t => ({ title: t.title, customer: t.customerName, urgency: t.urgency, nodesCount: t.nodes?.length, activeNodes: t.nodes?.filter(n => !n.completed).map(n => n.text) }));
-                    const corePrompt = `你是一个专业的任务管理专家...${userSystemPrompt ? `特别注意用户设定的额外指令：${userSystemPrompt}` : ''}...请严格返回如下 JSON 格式...`;
-                    const prompt = `${corePrompt}。当前任务数据：${JSON.stringify(context)}`;
-                    try { const res = await callAI(apiKey, baseUrl, model, prompt, true); if (res) setData(res); else throw new Error("API 返回空数据"); } catch (e) { setError(`分析失败: ${e.message}`); } finally { setLoading(false); }
+                    const apiKey = localStorage.getItem('ai_api_key'); const baseUrl = localStorage.getItem('ai_base_url'); const model = localStorage.getItem('ai_model');
+                    if (!apiKey) { setError("请先在设置中填入 API Key"); setLoading(false); return; }
+                    
+                    // 构建简化版的任务数据，减少Token消耗
+                    const simpleTasks = tasks.filter(t=>t.urgency!=='completed').map(t => ({
+                        title: t.title, customer: t.customerName, 
+                        nodes: t.nodes?.filter(n=>!n.completed).map(n=>n.text)
+                    }));
+
+                    const prompt = `你是一位擅长“偷懒”和高效工作的赛博军师。请分析以下任务列表，核心目标是找出【批量处理】的机会。
+                    
+                    请寻找具有共性的任务，例如：
+                    1. 都在同一个地理位置（如“去香港”、“去深圳大学”）。
+                    2. 都需要做同一类动作（如“报价”、“开发票”、“寄快递”、“远程调试”）。
+                    3. 都涉及同一个关键人物（如“联系老吴”、“回复Tina”）。
+                    
+                    请返回纯 JSON 格式：
+                    {
+                        "batchSuggestions": [
+                            { "category": "🏷️ 批量报价", "items": ["任务A", "任务B"], "advice": "建议集中在周二上午10点统一处理" },
+                            { "category": "📍 外出/跑腿", "items": ["去某地取件", "去某地送货"], "advice": "路线顺路，建议一次性跑完" }
+                        ],
+                        "timeOptimization": ["针对整体时间安排的1-2条犀利建议"],
+                        "workload": "用一句话幽默点评当前的工作负载（牛马指数）"
+                    }
+                    
+                    任务数据：${JSON.stringify(simpleTasks)}`;
+
+                    try { const res = await callAI(apiKey, baseUrl, model, prompt, true); setData(res); } catch (e) { setError(e.message); } finally { setLoading(false); }
                 };
                 analyze();
             }, [tasks]);
+
             return (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
                     <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col border border-slate-100 overflow-hidden">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50"><div><h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><BrainCircuit className="text-indigo-600"/> 赛博军师作战室</h3><p className="text-xs text-slate-500 font-medium mt-1">SiliconFlow 驱动的战术分析</p></div><button onClick={onClose} className="p-2 hover:bg-white/50 rounded-full transition-colors"><X size={24} className="text-slate-400"/></button></div>
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
+                            <div><h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><BrainCircuit className="text-indigo-600"/> 赛博军师：批量作业指引</h3><p className="text-xs text-slate-500 font-medium mt-1">三合一“技术外卖”策略分析中...</p></div>
+                            <button onClick={onClose} className="p-2 hover:bg-white/50 rounded-full transition-colors"><X size={24} className="text-slate-400"/></button>
+                        </div>
                         <div className="flex-1 overflow-y-auto p-6 bg-[#F8FAFC]">
-                            {loading ? (<div className="h-full flex flex-col items-center justify-center gap-6 text-slate-400"><Loader2 size={64} className="animate-spin text-indigo-200"/><p className="font-bold text-sm animate-pulse">正在扫描战局...</p></div>) : error ? (<div className="h-full flex flex-col items-center justify-center text-red-400 gap-4"><AlertCircle size={48} className="opacity-20"/><p className="font-bold">{error}</p></div>) : data ? (
+                            {loading ? <div className="h-full flex flex-col items-center justify-center gap-6 text-slate-400"><Loader2 size={64} className="animate-spin text-indigo-200"/><p className="font-bold text-sm animate-pulse">正在扫描同类任务，寻找摸鱼（高效）机会...</p></div> :
+                             error ? <div className="h-full flex flex-col items-center justify-center text-red-400 gap-4"><AlertCircle size={48} className="opacity-20"/><p className="font-bold">{error}</p></div> :
+                             data ? (
                                 <div className="space-y-6">
-                                    {data.mentorMessage && (<div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 rounded-2xl shadow-lg text-white relative overflow-hidden animate-zoom-in"><div className="absolute top-0 right-0 p-4 opacity-20"><MessageCircle size={64}/></div><div className="relative z-10"><div className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-2 flex items-center gap-2"><Sparkles size={12}/> 军师锦囊</div><div className="text-lg font-bold font-serif leading-relaxed">“ {data.mentorMessage} ”</div></div></div>)}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="md:col-span-2 analysis-card border-l-4 border-l-red-500"><div className="analysis-title text-red-500"><ShieldAlert size={16}/> 火烧眉毛</div><ul className="space-y-2">{data.priorities?.map((item, i) => (<li key={i} className="flex gap-2 text-sm font-bold text-slate-700"><span className="text-red-500">•</span> {item}</li>))}</ul></div>
-                                        <div className="analysis-card relative overflow-hidden"><div className="analysis-title text-indigo-500"><HeartPulse size={16}/> 负荷评估</div><div className="absolute top-4 right-4 text-4xl font-black text-indigo-100 opacity-50">{data.workloadAssessment?.score}</div><div className="text-2xl font-black text-slate-800 mb-1">{data.workloadAssessment?.level}</div><div className="w-full bg-slate-100 h-2 rounded-full mb-3 overflow-hidden"><div className="bg-indigo-500 h-full rounded-full transition-all duration-1000" style={{width: `${data.workloadAssessment?.score || 0}%`}}></div></div><div className="text-xs text-slate-500 space-y-1">{data.workloadAssessment?.healthTips?.map((tip,i)=><div key={i}>• {tip}</div>)}</div></div>
+                                    <div className="bg-indigo-600 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
+                                        <Bot className="absolute -right-4 -bottom-4 text-indigo-500 opacity-30" size={100}/>
+                                        <div className="relative z-10"><div className="text-xs font-bold text-indigo-200 uppercase mb-2">牛马指数点评</div><div className="text-lg font-bold font-serif">“ {data.workload} ”</div></div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-4"><div className="analysis-card"><div className="analysis-title text-blue-500"><Layers size={16}/> 批量建议</div><ul className="space-y-2 text-sm text-slate-600 font-medium">{data.batchSuggestions?.map((s,i)=><li key={i} className="bg-blue-50/50 p-2 rounded-lg">{s}</li>)}</ul></div><div className="analysis-card"><div className="analysis-title text-amber-500"><Clock size={16}/> 时间优化</div><ul className="space-y-2 text-sm text-slate-600 font-medium">{data.timeOptimization?.map((s,i)=><li key={i} className="bg-amber-50/50 p-2 rounded-lg">{s}</li>)}</ul></div></div>
-                                        <div className="space-y-4"><div className="analysis-card"><div className="analysis-title text-orange-500"><Flag size={16}/> 潜在风险</div><ul className="space-y-2 text-sm text-slate-600 font-medium">{data.risks?.map((s,i)=><li key={i} className="flex gap-2"><span className="text-orange-400">⚠️</span> {s}</li>)}</ul></div><div className="analysis-card bg-gradient-to-br from-green-50 to-emerald-50 border-green-100"><div className="analysis-title text-emerald-600"><PartyPopper size={16}/> 摸鱼指南</div><ul className="space-y-2 text-sm text-emerald-800 font-bold">{data.relaxTips?.map((s,i)=><li key={i}>☕ {s}</li>)}</ul></div></div>
+                                        {data.batchSuggestions?.map((group, idx) => (
+                                            <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <h4 className="font-black text-slate-800 text-lg">{group.category}</h4>
+                                                    <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2 py-1 rounded-lg">建议合并</span>
+                                                </div>
+                                                <ul className="mb-4 space-y-2">
+                                                    {group.items?.map((item, i) => <li key={i} className="text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 flex gap-2"><CheckCircle2 size={16} className="text-slate-300 flex-shrink-0"/> {item}</li>)}
+                                                </ul>
+                                                <div className="text-xs text-indigo-600 font-bold bg-indigo-50 p-3 rounded-xl flex gap-2 items-start"><Sparkles size={14} className="mt-0.5 flex-shrink-0"/> {group.advice}</div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div className="bg-slate-800 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden"><Bot className="absolute -right-4 -bottom-4 text-slate-700 opacity-20" size={120}/><div className="relative z-10"><div className="text-xs font-bold text-slate-400 uppercase mb-2">军师总结</div><div className="text-lg font-bold italic font-serif">“ {data.encouragement} ”</div></div></div>
+                                    <div className="bg-amber-50 border border-amber-100 p-5 rounded-2xl">
+                                        <h4 className="text-sm font-black text-amber-600 mb-3 flex items-center gap-2"><Clock size={16}/> 时间黑洞预警 & 优化</h4>
+                                        <ul className="space-y-2">{data.timeOptimization?.map((s,i)=><li key={i} className="flex gap-2 text-sm text-amber-800 font-medium"><span className="text-amber-500">⚡</span>{s}</li>)}</ul>
+                                    </div>
                                 </div>
-                            ) : null}
+                             ) : null}
                         </div>
                     </div>
                 </div>
@@ -387,16 +422,23 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
             );
         };
 
-        // --- Task & Node Views (略微省略，逻辑不变) ---
         const TaskDetailView = ({ task, onUpdate, onClose, allAssignees, allCustomers, onDeleteNode }) => {
-            const [pickerState, setPicker] = useState({open: false, nodeId: null, date: null}); const [newNodeText, setNewNodeText] = useState(''); const [nodeFilter, setNodeFilter] = useState('active');
+            const [pickerState, setPicker] = useState({open: false, nodeId: null, date: null}); const [newNodeText, setNewNodeText] = useState(''); const [nodeFilter, setNodeFilter] = useState('active'); const [showProjectAI, setShowProjectAI] = useState(false);
             const visibleNodes = useMemo(() => (task.nodes || []).filter((n) => nodeFilter === 'active' ? !n.completed : n.completed), [task.nodes, nodeFilter]);
             const handleUpdateNode = (nodeId, updates) => { const newNodes = task.nodes.map((n) => { if (n.id === nodeId) { let extra = {}; if ('completed' in updates && updates.completed && !n.completed) { extra = { completedAt: Date.now() }; } return { ...n, ...updates, ...extra }; } return n; }); onUpdate(task.id, { nodes: newNodes }); };
             return (
                 <div className="animate-fade-in space-y-6">
+                    {showProjectAI && <ProjectAIModal task={task} onClose={()=>setShowProjectAI(false)} />}
                     {pickerState.open && <DateTimePicker initialDate={pickerState.date} onClose={() => setPicker({open:false, nodeId:null, date:null})} onSelect={(ts) => { handleUpdateNode(pickerState.nodeId, { plannedDate: ts }); setPicker({open:false, nodeId:null, date:null}); }} />}
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100"><CompositionInput value={task.title || ''} onChange={(e) => onUpdate(task.id, { title: e.target.value })} className="w-full text-3xl font-black text-slate-800 mb-6 focus:bg-slate-50 p-2 rounded-2xl" placeholder="任务名称" /><div className="flex flex-wrap gap-4 items-center px-2"><div className="inline-flex bg-[#F5F7FA] p-1.5 rounded-2xl border border-slate-100 flex-wrap">{(['quote', 'order', 'shipping', 'payment', 'completed']).map(u => (<button key={u} onClick={() => { const updates = { urgency: u }; if (u === 'completed' && task.nodes) { const autoCompletedNodes = task.nodes.map(n => { if (!n.completed) { return { ...n, completed: true, completedAt: Date.now() }; } return n; }); updates.nodes = autoCompletedNodes; } onUpdate(task.id, updates); }} className={`px-4 py-1.5 text-xs font-black rounded-xl transition-all ${task.urgency === u ? 'bg-white shadow-sm font-bold text-[#4A90E2]' : 'text-slate-400 hover:text-slate-600'}`}>{urgencyConfig[u].label}</button>))}</div><div className="h-6 w-px bg-slate-100 mx-2 hidden sm:block"></div><AutocompleteInput value={task.customerName || ''} onChange={(e) => onUpdate(task.id, { customerName: e.target.value })} options={allCustomers} placeholder="设置客户名" className="bg-[#F5F7FA] rounded-xl px-4 py-2 text-sm font-bold w-48 border border-transparent focus:bg-white focus:border-blue-100" /></div></div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"><div className="lg:col-span-1 bg-white p-7 rounded-3xl border border-slate-100 shadow-sm h-fit"><div className="font-black text-sm text-slate-400 mb-4 flex items-center gap-2 uppercase tracking-widest"><AlertCircle size={14}/> 核心摘要</div><CompositionTextarea value={task.summary || ''} onChange={(e) => onUpdate(task.id, { summary: e.target.value })} className="w-full h-48 bg-[#F5F7FA] rounded-2xl p-4 text-sm font-medium resize-none border border-transparent focus:border-[#4A90E2] focus:bg-white transition-all leading-relaxed" placeholder="在这里记下关键背景..." /></div><div className="lg:col-span-2 bg-white p-7 rounded-3xl border border-slate-100 shadow-sm min-h-[500px] flex flex-col"><div className="flex justify-between items-center mb-6"><div className="flex items-center gap-3"><span className="font-black text-slate-800">执行节点</span><div className="flex bg-slate-100 p-1 rounded-xl border"><button onClick={() => setNodeFilter('active')} className={`px-4 py-1.5 text-xs font-black rounded-lg transition-all ${nodeFilter === 'active' ? 'bg-white shadow-sm text-[#4A90E2]' : 'text-slate-400'}`}>待办项</button><button onClick={() => setNodeFilter('completed')} className={`px-4 py-1.5 text-xs font-black rounded-lg transition-all ${nodeFilter === 'completed' ? 'bg-white shadow-sm text-[#4A90E2]' : 'text-slate-400'}`}>已完成</button></div></div><span className="text-xs font-black text-slate-300">{task.nodes?.filter((n)=>n.completed).length || 0} / {task.nodes?.length || 0}</span></div><div className="space-y-4 flex-1">{visibleNodes.length === 0 && (<div className="h-40 flex flex-col items-center justify-center text-slate-300 font-bold border-2 border-dashed rounded-3xl"><Check size={32} className="mb-2 opacity-20"/><p className="text-xs">暂无{nodeFilter === 'active' ? '待办' : '已完成'}事项</p></div>)}{visibleNodes.map((node) => (<div key={node.id} className={`group p-4 rounded-2xl border transition-all relative ${node.isImportant ? 'border-orange-100 bg-orange-50/30' : 'border-slate-50 hover:border-[#4A90E2]/30 hover:bg-[#F5F7FA]'}`}><div className="flex items-center gap-4 mb-2"><button onClick={() => handleUpdateNode(node.id, { completed: !node.completed })} className={`transition-colors ${node.completed ? 'text-green-500' : 'text-slate-200 hover:text-[#4A90E2]'}`}>{node.completed ? <CheckCircle size={22} className="fill-current bg-white rounded-full"/> : <Circle size={22}/>}</button><CompositionInput value={node.text || ''} onChange={(e) => handleUpdateNode(node.id, { text: e.target.value })} className={`flex-1 bg-transparent text-sm font-bold ${node.completed ? 'line-through text-slate-300' : 'text-slate-700'}`} /><button onClick={() => handleUpdateNode(node.id, { isImportant: !node.isImportant })} className={`transition-colors opacity-0 group-hover:opacity-100 ${node.isImportant ? 'text-orange-400 opacity-100' : 'text-slate-200 hover:text-orange-400'}`}><Star size={18} className={node.isImportant ? "fill-current" : ""} /></button><button onClick={() => onDeleteNode(task.id, node.id)} className="text-slate-200 hover:text-red-500 opacity-100 transition-all p-1 z-20 relative" title="删除节点"><Trash2 size={16}/></button></div><div className="pl-10 flex gap-5 text-[10px] font-black items-center"><div className="flex items-center gap-1.5 text-slate-400 focus-within:text-blue-500 transition-colors"><User size={12}/><AutocompleteInput value={node.assignee || ''} onChange={(e) => handleUpdateNode(node.id, { assignee: e.target.value })} options={allAssignees} placeholder="对接人" className="bg-transparent border-b border-dashed w-20 focus:w-24 transition-all outline-none h-4" /></div><button onClick={() => setPicker({open:true, nodeId: node.id, date: node.plannedDate})} className="text-[#4A90E2] flex items-center gap-1.5 hover:underline bg-blue-50/50 px-2 py-1 rounded-lg"><Clock size={12}/> {safeDate(node.plannedDate).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'})}</button></div></div>))}</div><div className="mt-8 p-3 bg-slate-50 rounded-2xl border border-dashed focus-within:bg-white focus-within:border-[#4A90E2] focus-within:ring-4 focus-within:ring-blue-50 transition-all"><CompositionInput value={newNodeText} onChange={(e) => setNewNodeText(e.target.value)} onKeyDown={(e) => {if(e.key==='Enter' && newNodeText.trim()) { const n = { id: generateId(), text: newNodeText.trim(), completed: false, assignee: '', plannedDate: null, plannedEndDate: null, isImportant: false }; onUpdate(task.id, { nodes: [...(task.nodes||[]), n] }); setNewNodeText(''); setNodeFilter('active'); }}} placeholder="输入待办事项并按回车直接添加..." className="w-full bg-transparent text-sm font-bold px-3 py-1 outline-none h-10" /></div></div></div></div>
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                        <div className="flex justify-between items-start mb-4">
+                            <CompositionInput value={task.title || ''} onChange={(e) => onUpdate(task.id, { title: e.target.value })} className="w-full text-3xl font-black text-slate-800 focus:bg-slate-50 p-2 rounded-2xl mr-4" placeholder="任务名称" />
+                            <button onClick={() => setShowProjectAI(true)} className="bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl font-bold flex items-center gap-1 hover:bg-indigo-100 transition-all text-sm whitespace-nowrap shadow-sm"><ScanSearch size={18}/> 查漏补缺</button>
+                        </div>
+                        <div className="flex flex-wrap gap-4 items-center px-2"><div className="inline-flex bg-[#F5F7FA] p-1.5 rounded-2xl border border-slate-100 flex-wrap">{(['wait_me', 'wait_him', 'completed']).map(u => (<button key={u} onClick={() => { const updates = { urgency: u }; if (u === 'completed' && task.nodes) { const autoCompletedNodes = task.nodes.map(n => { if (!n.completed) { return { ...n, completed: true, completedAt: Date.now() }; } return n; }); updates.nodes = autoCompletedNodes; } onUpdate(task.id, updates); }} className={`px-4 py-1.5 text-xs font-black rounded-xl transition-all ${task.urgency === u ? 'bg-white shadow-sm font-bold text-[#4A90E2]' : 'text-slate-400 hover:text-slate-600'}`}>{urgencyConfig[u].label}</button>))}</div><div className="h-6 w-px bg-slate-100 mx-2 hidden sm:block"></div><AutocompleteInput value={task.customerName || ''} onChange={(e) => onUpdate(task.id, { customerName: e.target.value })} options={allCustomers} placeholder="设置客户名" className="bg-[#F5F7FA] rounded-xl px-4 py-2 text-sm font-bold w-48 border border-transparent focus:bg-white focus:border-blue-100" /></div></div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"><div className="lg:col-span-1 bg-white p-7 rounded-3xl border border-slate-100 shadow-sm h-fit"><div className="font-black text-sm text-slate-400 mb-4 flex items-center gap-2 uppercase tracking-widest"><AlertCircle size={14}/> 核心摘要</div><CompositionTextarea value={task.summary || ''} onChange={(e) => onUpdate(task.id, { summary: e.target.value })} className="w-full h-48 bg-[#F5F7FA] rounded-2xl p-4 text-sm font-medium resize-none border border-transparent focus:border-[#4A90E2] focus:bg-white transition-all leading-relaxed" placeholder="在这里记下关键背景..." /></div><div className="lg:col-span-2 bg-white p-7 rounded-3xl border border-slate-100 shadow-sm min-h-[500px] flex flex-col">
+                        <div className="mb-6 p-1 bg-slate-50 rounded-2xl border border-dashed focus-within:bg-white focus-within:border-[#4A90E2] focus-within:ring-4 focus-within:ring-blue-50 transition-all"><CompositionInput value={newNodeText} onChange={(e) => setNewNodeText(e.target.value)} onKeyDown={(e) => {if(e.key==='Enter' && newNodeText.trim()) { const n = { id: generateId(), text: newNodeText.trim(), completed: false, assignee: '', plannedDate: null, plannedEndDate: null, isImportant: false }; onUpdate(task.id, { nodes: [...(task.nodes||[]), n] }); setNewNodeText(''); setNodeFilter('active'); }}} placeholder="+ 输入待办事项并按回车直接添加..." className="w-full bg-transparent text-sm font-bold px-3 py-3 outline-none h-12" /></div>
+                        <div className="flex justify-between items-center mb-4"><div className="flex items-center gap-3"><span className="font-black text-slate-800">执行节点</span><div className="flex bg-slate-100 p-1 rounded-xl border"><button onClick={() => setNodeFilter('active')} className={`px-4 py-1.5 text-xs font-black rounded-lg transition-all ${nodeFilter === 'active' ? 'bg-white shadow-sm text-[#4A90E2]' : 'text-slate-400'}`}>待办项</button><button onClick={() => setNodeFilter('completed')} className={`px-4 py-1.5 text-xs font-black rounded-lg transition-all ${nodeFilter === 'completed' ? 'bg-white shadow-sm text-[#4A90E2]' : 'text-slate-400'}`}>已完成</button></div></div><span className="text-xs font-black text-slate-300">{task.nodes?.filter((n)=>n.completed).length || 0} / {task.nodes?.length || 0}</span></div><div className="space-y-4 flex-1">{visibleNodes.length === 0 && (<div className="h-40 flex flex-col items-center justify-center text-slate-300 font-bold border-2 border-dashed rounded-3xl"><Check size={32} className="mb-2 opacity-20"/><p className="text-xs">暂无{nodeFilter === 'active' ? '待办' : '已完成'}事项</p></div>)}{visibleNodes.map((node) => (<div key={node.id} className={`group p-4 rounded-2xl border transition-all relative ${node.isImportant ? 'border-orange-100 bg-orange-50/30' : 'border-slate-50 hover:border-[#4A90E2]/30 hover:bg-[#F5F7FA]'}`}><div className="flex items-center gap-4 mb-2"><button onClick={() => handleUpdateNode(node.id, { completed: !node.completed })} className={`transition-colors ${node.completed ? 'text-green-500' : 'text-slate-200 hover:text-[#4A90E2]'}`}>{node.completed ? <CheckCircle size={22} className="fill-current bg-white rounded-full"/> : <Circle size={22}/>}</button><CompositionInput value={node.text || ''} onChange={(e) => handleUpdateNode(node.id, { text: e.target.value })} className={`flex-1 bg-transparent text-sm font-bold ${node.completed ? 'line-through text-slate-300' : 'text-slate-700'}`} /><button onClick={() => handleUpdateNode(node.id, { isImportant: !node.isImportant })} className={`transition-colors opacity-0 group-hover:opacity-100 ${node.isImportant ? 'text-orange-400 opacity-100' : 'text-slate-200 hover:text-orange-400'}`}><Star size={18} className={node.isImportant ? "fill-current" : ""} /></button><button onClick={() => onDeleteNode(task.id, node.id)} className="text-slate-200 hover:text-red-500 opacity-100 transition-all p-1 z-20 relative" title="删除节点"><Trash2 size={16}/></button></div><div className="pl-10 flex gap-5 text-[10px] font-black items-center"><div className="flex items-center gap-1.5 text-slate-400 focus-within:text-blue-500 transition-colors"><User size={12}/><AutocompleteInput value={node.assignee || ''} onChange={(e) => handleUpdateNode(node.id, { assignee: e.target.value })} options={allAssignees} placeholder="对接人" className="bg-transparent border-b border-dashed w-20 focus:w-24 transition-all outline-none h-4" /></div><button onClick={() => setPicker({open:true, nodeId: node.id, date: node.plannedDate})} className="text-[#4A90E2] flex items-center gap-1.5 hover:underline bg-blue-50/50 px-2 py-1 rounded-lg"><Clock size={12}/> {safeDate(node.plannedDate).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'})}</button></div></div>))}</div></div></div></div>
             );
         };
 
@@ -413,8 +455,6 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
         const SettingsDialog = ({ onClose, tasks, onRestore }) => {
             const [apiKey, setApiKey] = useState(localStorage.getItem('ai_api_key') || ''); const [baseUrl, setBaseUrl] = useState(localStorage.getItem('ai_base_url') || 'https://api.siliconflow.cn/v1'); const [model, setModel] = useState(localStorage.getItem('ai_model') || 'deepseek-ai/DeepSeek-V3'); const [systemPrompt, setSystemPrompt] = useState(localStorage.getItem('ai_system_prompt') || ''); const [statusMsg, setStatusMsg] = useState(''); const [isRestoring, setIsRestoring] = useState(false);
             const handleBackup = () => { const dataStr = JSON.stringify(tasks, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `BullHorse_Supabase_Backup_${new Date().toISOString().split('T')[0]}.json`; link.click(); };
-            
-            // --- 核心更新：增强版数据恢复 ---
             const handleRestore = async (e) => {
                 const file = e.target.files[0]; if (!file) return;
                 setIsRestoring(true); setStatusMsg('正在解析 JSON...');
@@ -422,54 +462,21 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
                 reader.onload = async (event) => {
                     try {
                         const imported = JSON.parse(event.target.result);
-                        
-                        // 1. 检测是否为旧版数据结构 (含有 projects 和 tasks 数组)
                         if (imported.projects && Array.isArray(imported.projects) && imported.tasks && Array.isArray(imported.tasks)) {
                             setStatusMsg('检测到旧版数据结构，正在执行自动转译...');
-                            
                             const transformedData = imported.projects.map(project => {
-                                // 找到该项目下的所有任务
                                 const projectTasks = imported.tasks.filter(t => t.projectId === project.id);
-                                
-                                // 将旧版 Tasks 转换为新版 Nodes
-                                const nodes = projectTasks.map(t => ({
-                                    id: t.id || Math.random().toString(36).substr(2, 9),
-                                    text: t.content || '无内容',
-                                    completed: t.status === 'completed',
-                                    completedAt: t.completedAt ? new Date(t.completedAt).getTime() : null,
-                                    assignee: t.assigner || '',
-                                    plannedDate: t.planDate ? new Date(t.planDate).getTime() : null,
-                                    isImportant: t.isImportant || false,
-                                    plannedEndDate: null 
-                                }));
-
-                                return {
-                                    id: project.id, // 保留原 ID
-                                    title: project.name || '未命名项目',
-                                    customerName: '', // 旧版 Project 无 Explicit Customer Name，留空或手动补充
-                                    summary: project.note || '',
-                                    // 映射状态: active -> normal (普通), 否则 completed
-                                    urgency: project.status === 'active' ? 'normal' : 'completed',
-                                    nodes: nodes,
-                                    createdAt: project.createdAt || new Date().toISOString()
-                                };
+                                const nodes = projectTasks.map(t => ({ id: t.id || Math.random().toString(36).substr(2, 9), text: t.content || '无内容', completed: t.status === 'completed', completedAt: t.completedAt ? new Date(t.completedAt).getTime() : null, assignee: t.assigner || '', plannedDate: t.planDate ? new Date(t.planDate).getTime() : null, isImportant: t.isImportant || false, plannedEndDate: null }));
+                                let newUrgency = 'wait_me'; if (project.status === 'completed') newUrgency = 'completed'; else if (project.waitStatus === 'wait_me') newUrgency = 'wait_me'; else if (project.waitStatus === 'wait_him') newUrgency = 'wait_him'; else if (project.status === 'active') newUrgency = 'wait_me'; 
+                                return { id: project.id, title: project.name || '未命名项目', customerName: '', summary: project.note || '', urgency: newUrgency, nodes: nodes, createdAt: project.createdAt || new Date().toISOString() };
                             });
-                            
-                            setStatusMsg(`转译完成！准备导入 ${transformedData.length} 个项目...`);
-                            await onRestore(transformedData);
-                        } else {
-                            // 2. 标准新版数据
-                            setStatusMsg(`解析成功，开始搬运 ${imported.length} 条数据...`);
-                            await onRestore(imported);
-                        }
-
-                        setStatusMsg(`恢复成功！数据已进入 Supabase。`);
-                        setTimeout(() => { setStatusMsg(''); onClose(); }, 2000);
+                            setStatusMsg(`转译完成！准备导入 ${transformedData.length} 个项目...`); await onRestore(transformedData);
+                        } else { setStatusMsg(`解析成功，开始搬运 ${imported.length} 条数据...`); await onRestore(imported); }
+                        setStatusMsg(`恢复成功！数据已进入 Supabase。`); setTimeout(() => { setStatusMsg(''); onClose(); }, 2000);
                     } catch (err) { console.error(err); setStatusMsg('恢复失败: ' + err.message); } finally { setIsRestoring(false); }
                 };
                 reader.readAsText(file);
             };
-
             const handleSaveSettings = () => { localStorage.setItem('ai_api_key', apiKey); localStorage.setItem('ai_base_url', baseUrl); localStorage.setItem('ai_model', model); localStorage.setItem('ai_system_prompt', systemPrompt); onClose(); };
             return (
                 <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-md z-[150] flex items-center justify-center p-4">
@@ -477,24 +484,9 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
                         <div className="flex justify-between items-center mb-6"><h3 className="font-black text-xl flex items-center gap-2 text-slate-800"><Settings size={24}/> 系统设置</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-300 hover:text-slate-600"><X size={24}/></button></div>
                         <div className="space-y-6">
                             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-2"><h4 className="text-sm font-black text-emerald-700 flex items-center gap-2"><Server size={16}/> 云端状态</h4><p className="text-xs text-emerald-600 font-bold">已连接 Supabase (PostgreSQL)</p></div>
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                                <h4 className="text-sm font-black text-slate-700 flex items-center gap-2"><Cpu size={16}/> AI 引擎配置</h4>
-                                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">API Key</label><input type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)} className="w-full p-3 bg-white rounded-xl text-xs font-bold border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all outline-none" placeholder="sk-..." /></div>
-                                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">API 地址</label><input type="text" value={baseUrl} onChange={e=>setBaseUrl(e.target.value)} className="w-full p-3 bg-white rounded-xl text-xs font-bold border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all outline-none" placeholder="https://api.siliconflow.cn/v1" /></div>
-                                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">AI 引擎模型</label><select value={model} onChange={e=>setModel(e.target.value)} className="w-full p-3 bg-white rounded-xl text-xs font-bold border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all outline-none appearance-none">{SILICONFLOW_MODELS.map(m => (<option key={m.id} value={m.id}>{m.name}</option>))}</select></div>
-                            </div>
-                            <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 space-y-4">
-                                <h4 className="text-sm font-black text-indigo-700 flex items-center gap-2"><BrainCircuit size={16}/> 额外指令 (System Prompt)</h4>
-                                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">注入你的管理哲学</label><textarea value={systemPrompt} onChange={e=>setSystemPrompt(e.target.value)} className="w-full p-3 bg-white rounded-xl text-xs font-medium border border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all outline-none h-24 resize-none leading-relaxed" placeholder="例如：你是一个严厉的项目经理..." /></div>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">数据迁移与备份</label>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <button onClick={handleBackup} className="flex flex-col items-center justify-center gap-2 p-4 bg-blue-50/50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-all border border-blue-100 font-black text-xs"><Download size={20}/>备份数据</button>
-                                    <label className={`flex flex-col items-center justify-center gap-2 p-4 bg-green-50/50 text-green-600 rounded-2xl hover:bg-green-100 transition-all border border-green-100 font-black cursor-pointer text-xs ${isRestoring ? 'opacity-40 animate-pulse' : ''}`}><Upload size={20}/> {isRestoring ? '恢复中' : '恢复数据 (JSON)'}<input type="file" className="hidden" accept=".json" onChange={handleRestore} disabled={isRestoring}/></label>
-                                </div>
-                                {statusMsg && <div className="mt-4 text-center text-xs font-black text-[#4A90E2] animate-bounce">{statusMsg}</div>}
-                            </div>
+                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4"><h4 className="text-sm font-black text-slate-700 flex items-center gap-2"><Cpu size={16}/> AI 引擎配置</h4><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">API Key</label><input type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)} className="w-full p-3 bg-white rounded-xl text-xs font-bold border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all outline-none" placeholder="sk-..." /></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">API 地址</label><input type="text" value={baseUrl} onChange={e=>setBaseUrl(e.target.value)} className="w-full p-3 bg-white rounded-xl text-xs font-bold border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all outline-none" placeholder="https://api.siliconflow.cn/v1" /></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">AI 引擎模型</label><select value={model} onChange={e=>setModel(e.target.value)} className="w-full p-3 bg-white rounded-xl text-xs font-bold border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all outline-none appearance-none">{SILICONFLOW_MODELS.map(m => (<option key={m.id} value={m.id}>{m.name}</option>))}</select></div></div>
+                            <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 space-y-4"><h4 className="text-sm font-black text-indigo-700 flex items-center gap-2"><BrainCircuit size={16}/> 额外指令 (System Prompt)</h4><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">注入你的管理哲学</label><textarea value={systemPrompt} onChange={e=>setSystemPrompt(e.target.value)} className="w-full p-3 bg-white rounded-xl text-xs font-medium border border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all outline-none h-24 resize-none leading-relaxed" placeholder="例如：你是一个严厉的项目经理..." /></div></div>
+                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">数据迁移与备份</label><div className="grid grid-cols-2 gap-4"><button onClick={handleBackup} className="flex flex-col items-center justify-center gap-2 p-4 bg-blue-50/50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-all border border-blue-100 font-black text-xs"><Download size={20}/>备份数据</button><label className={`flex flex-col items-center justify-center gap-2 p-4 bg-green-50/50 text-green-600 rounded-2xl hover:bg-green-100 transition-all border border-green-100 font-black cursor-pointer text-xs ${isRestoring ? 'opacity-40 animate-pulse' : ''}`}><Upload size={20}/> {isRestoring ? '恢复中' : '恢复数据 (JSON)'}<input type="file" className="hidden" accept=".json" onChange={handleRestore} disabled={isRestoring}/></label></div>{statusMsg && <div className="mt-4 text-center text-xs font-black text-[#4A90E2] animate-bounce">{statusMsg}</div>}</div>
                             <button onClick={handleSaveSettings} className="w-full py-4 bg-[#4A90E2] text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-[#357ABD] active:scale-95 transition-all">保存设置</button>
                         </div>
                     </div>
@@ -506,20 +498,20 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
             const importantNodes = useMemo(() => { const nodes = []; tasks.forEach(t => (t.nodes || []).forEach(n => { if (n.isImportant && !n.completed) nodes.push({ taskTitle: t.title, taskId: t.id, node: n }); })); return nodes.sort((a, b) => (a.node.plannedDate || 0) - (b.node.plannedDate || 0)); }, [tasks]);
             if (importantNodes.length === 0) return null;
             return (
-                <div className="mb-6 p-5 bg-orange-50/60 border border-orange-100 rounded-[1.5rem] shadow-sm animate-fade-in">
-                    <h3 className="text-sm font-black text-orange-500 mb-3 flex items-center gap-2 tracking-wide uppercase"><Star size={16} className="fill-current"/> 重要待办事项 ({importantNodes.length})</h3>
-                    <div className="flex flex-col gap-2">{importantNodes.map(({ taskTitle, taskId, node }, i) => (<div key={`${taskId}-${node.id}`} onClick={() => onSelectTask(taskId)} className="flex items-center justify-between p-3 hover:bg-white/80 rounded-xl cursor-pointer transition-all border border-transparent hover:border-orange-200 group"><div className="flex items-center gap-3 min-w-0 flex-1 pr-4"><button onClick={(e) => { e.stopPropagation(); onToggleNode(taskId, node.id, { completed: !node.completed }); }} className="flex-shrink-0 text-orange-300 hover:text-green-500 transition-colors"><Circle size={20} strokeWidth={2.5}/></button><div className="min-w-0 flex-1"><div className="text-sm text-orange-900 font-bold truncate">{node.text}</div><div className="text-[10px] text-orange-400/80 mt-0.5 truncate flex items-center gap-2 font-bold"><span>{taskTitle}</span>{node.assignee && <span className="bg-white px-1.5 rounded-md text-orange-500 border border-orange-100">@{node.assignee}</span>}</div></div></div><div className="flex items-center gap-2 flex-shrink-0"><div className="text-xs font-black text-orange-400 bg-white/60 px-2 py-1 rounded-lg">{safeDate(node.plannedDate).toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'})}</div><button onClick={(e) => { e.stopPropagation(); onToggleNode(taskId, node.id, { isImportant: !node.isImportant }); }} className="text-orange-400 hover:text-orange-600 transition-colors p-1"><Star size={18} className="fill-current"/></button><button onClick={(e) => { e.stopPropagation(); onDeleteNode(taskId, node.id); }} className="text-orange-300 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button></div></div>))}</div>
+                <div className="h-full p-5 bg-yellow-50/60 border border-yellow-100 rounded-[1.5rem] shadow-sm animate-fade-in flex flex-col">
+                    <h3 className="text-sm font-black text-yellow-600 mb-3 flex items-center gap-2 tracking-wide uppercase"><Star size={16} className="fill-current"/> 重要待办事项 ({importantNodes.length})</h3>
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1">{importantNodes.map(({ taskTitle, taskId, node }, i) => (<div key={`${taskId}-${node.id}`} onClick={() => onSelectTask(taskId)} className="flex items-center justify-between p-3 hover:bg-white/80 rounded-xl cursor-pointer transition-all border border-transparent hover:border-yellow-200 group"><div className="flex items-center gap-3 min-w-0 flex-1 pr-4"><button onClick={(e) => { e.stopPropagation(); onToggleNode(taskId, node.id, { completed: !node.completed }); }} className="flex-shrink-0 text-yellow-300 hover:text-green-500 transition-colors"><Circle size={20} strokeWidth={2.5}/></button><div className="min-w-0 flex-1"><div className="text-sm text-yellow-900 font-bold truncate">{node.text}</div><div className="text-[10px] text-yellow-500 mt-0.5 truncate flex items-center gap-2 font-bold"><span>{taskTitle}</span>{node.assignee && <span className="bg-white px-1.5 rounded-md text-yellow-600 border border-yellow-100">@{node.assignee}</span>}</div></div></div><div className="flex items-center gap-2 flex-shrink-0"><div className="text-xs font-black text-yellow-500 bg-white/60 px-2 py-1 rounded-lg">{safeDate(node.plannedDate).toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'})}</div><button onClick={(e) => { e.stopPropagation(); onToggleNode(taskId, node.id, { isImportant: !node.isImportant }); }} className="text-yellow-500 hover:text-yellow-700 transition-colors p-1"><Star size={18} className="fill-current"/></button><button onClick={(e) => { e.stopPropagation(); onDeleteNode(taskId, node.id); }} className="text-yellow-300 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button></div></div>))}</div>
                 </div>
             );
         };
 
         const OverdueSection = ({ tasks, onSelectTask, onToggleNode, onDeleteNode }) => {
-            const overdueNodes = useMemo(() => { const now = Date.now(); const nodes = []; tasks.forEach(t => t.nodes?.forEach(n => { if (n.plannedDate && n.plannedDate < now && !n.completed) nodes.push({ taskTitle: t.title, taskId: t.id, node: n }); })); return nodes.sort((a, b) => (a.node.plannedDate || 0) - (b.node.plannedDate || 0)); }, [tasks]);
+            const overdueNodes = useMemo(() => { const now = Date.now(); const nodes = []; tasks.forEach(t => t.nodes?.forEach(n => { if (n.plannedDate && n.plannedDate < now && !n.completed && !n.isImportant) nodes.push({ taskTitle: t.title, taskId: t.id, node: n }); })); return nodes.sort((a, b) => (a.node.plannedDate || 0) - (b.node.plannedDate || 0)); }, [tasks]);
             if (overdueNodes.length === 0) return null;
             return (
-                <div className="mb-8 p-5 bg-[#FFEFED] border border-[#FFD8D6] rounded-[1.5rem] shadow-sm animate-fade-in">
-                    <h3 className="text-sm font-black text-[#F5222D] mb-3 flex items-center gap-2 tracking-wide uppercase"><Flag size={16} className="fill-[#F5222D]/20"/> 逾期警报 ({overdueNodes.length})</h3>
-                    <div className="flex flex-col gap-2">{overdueNodes.map(({ taskTitle, taskId, node }) => (<div key={`${taskId}-${node.id}`} onClick={() => onSelectTask(taskId)} className="flex items-center justify-between p-3 hover:bg-[#FFF2F0] rounded-xl cursor-pointer transition-colors group"><div className="flex items-center gap-3 min-w-0 flex-1 pr-4"><button onClick={(e) => { e.stopPropagation(); onToggleNode(taskId, node.id, { completed: !node.completed }); }} className="flex-shrink-0 text-[#F5222D]/40 hover:text-green-500 transition-colors"><Circle size={20} strokeWidth={2.5}/></button><div className="min-w-0 flex-1"><div className="text-sm text-[#5C0011] font-bold truncate">{node.text}</div><div className="text-[10px] text-[#F5222D]/70 mt-0.5 truncate flex items-center gap-2 font-bold"><span>{taskTitle}</span>{node.assignee && <span className="bg-white/60 px-1.5 rounded-md text-[#CF1322]">@{node.assignee}</span>}</div></div></div><div className="flex items-center gap-2 flex-shrink-0"><div className="text-right"><div className="text-xs font-black text-[#F5222D]">{safeDate(node.plannedDate).toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'})}</div><div className="text-[10px] font-bold text-[#F5222D]/60">{safeDate(node.plannedDate).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'})}</div></div><button onClick={(e) => { e.stopPropagation(); onToggleNode(taskId, node.id, { isImportant: !node.isImportant }); }} className={`transition-colors p-1 ${node.isImportant ? 'text-orange-400' : 'text-[#F5222D]/30 hover:text-orange-400'}`}><Star size={18} className={node.isImportant ? "fill-current" : ""}/></button><button onClick={(e) => { e.stopPropagation(); onDeleteNode(taskId, node.id); }} className="text-[#F5222D]/40 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button></div></div>))}</div>
+                <div className="h-full p-5 bg-emerald-50 border border-emerald-100 rounded-[1.5rem] shadow-sm animate-fade-in flex flex-col">
+                    <h3 className="text-sm font-black text-emerald-600 mb-3 flex items-center gap-2 tracking-wide uppercase"><Flag size={16} className="fill-emerald-600/20"/> 逾期警报 ({overdueNodes.length})</h3>
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1">{overdueNodes.map(({ taskTitle, taskId, node }) => (<div key={`${taskId}-${node.id}`} onClick={() => onSelectTask(taskId)} className="flex items-center justify-between p-3 hover:bg-white/60 rounded-xl cursor-pointer transition-colors group"><div className="flex items-center gap-3 min-w-0 flex-1 pr-4"><button onClick={(e) => { e.stopPropagation(); onToggleNode(taskId, node.id, { completed: !node.completed }); }} className="flex-shrink-0 text-emerald-300 hover:text-emerald-500 transition-colors"><Circle size={20} strokeWidth={2.5}/></button><div className="min-w-0 flex-1"><div className="text-sm text-emerald-900 font-bold truncate">{node.text}</div><div className="text-[10px] text-emerald-600/70 mt-0.5 truncate flex items-center gap-2 font-bold"><span>{taskTitle}</span>{node.assignee && <span className="bg-white/60 px-1.5 rounded-md text-emerald-600">@{node.assignee}</span>}</div></div></div><div className="flex items-center gap-2 flex-shrink-0"><div className="text-right"><div className="text-xs font-black text-emerald-600">{safeDate(node.plannedDate).toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'})}</div><div className="text-[10px] font-bold text-emerald-600/60">{safeDate(node.plannedDate).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'})}</div></div><button onClick={(e) => { e.stopPropagation(); onToggleNode(taskId, node.id, { isImportant: !node.isImportant }); }} className={`transition-colors p-1 ${node.isImportant ? 'text-orange-400' : 'text-emerald-300 hover:text-orange-400'}`}><Star size={18} className={node.isImportant ? "fill-current" : ""}/></button><button onClick={(e) => { e.stopPropagation(); onDeleteNode(taskId, node.id); }} className="text-emerald-300 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button></div></div>))}</div>
                 </div>
             );
         };
@@ -544,8 +536,9 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
 
         // --- 主程序入口 ---
         function App() {
-            const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [activeTaskId, setActiveTaskId] = useState(null); const [activeAssignee, setActiveAssignee] = useState(null); const [deleteConfirm, setDeleteConfirm] = useState({open: false, taskId: null, type: 'task'}); const [moyuState, setMoyuState] = useState({ open: false, message: '' }); const [currentView, setCurrentView] = useState('all_active');  const [viewMode, setViewMode] = useState('grid'); const [weekOffset, setWeekOffset] = useState(0); const [showQuickAdd, setShowQuickAdd] = useState(false); const [showSettings, setShowSettings] = useState(false); const [showAIAnalysis, setShowAIAnalysis] = useState(false); const [mobileMenuOpen, setMobileMenuOpen] = useState(false); const [showSetupGuide, setShowSetupGuide] = useState(false);
-            const navItems = [ { id: 'all_active', label: '进行中' }, { id: 'completed_nodes', label: '节点记录' }, { id: 'quote', label: '报价' }, { id: 'order', label: '订单' }, { id: 'shipping', label: '发货' }, { id: 'payment', label: '收款' }, { id: 'completed_tasks', label: '已完成' }, { id: 'weekly', label: '周报' } ];
+            const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [activeTaskId, setActiveTaskId] = useState(null); const [activeAssignee, setActiveAssignee] = useState(null); const [deleteConfirm, setDeleteConfirm] = useState({open: false, taskId: null, type: 'task'}); const [moyuState, setMoyuState] = useState({ open: false, message: '' }); const [currentView, setCurrentView] = useState('all_active');  const [viewMode, setViewMode] = useState('grid'); const [weekOffset, setWeekOffset] = useState(0); const [showQuickAdd, setShowQuickAdd] = useState(false); const [showSettings, setShowSettings] = useState(false); const [showGlobalAI, setShowGlobalAI] = useState(false); const [mobileMenuOpen, setMobileMenuOpen] = useState(false); const [showSetupGuide, setShowSetupGuide] = useState(false);
+            
+            const navItems = [ { id: 'all_active', label: '进行中' }, { id: 'completed_nodes', label: '节点记录' }, { id: 'completed_tasks', label: '已完成' }, { id: 'weekly', label: '周报' } ];
             const triggerMoyu = (isAuto = false) => { const randomMsg = MOYU_MESSAGES[Math.floor(Math.random() * MOYU_MESSAGES.length)]; setMoyuState({ open: true, message: isAuto ? `整点报时：${randomMsg}` : randomMsg }); };
 
             const fetchTasks = async () => {
@@ -565,8 +558,8 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
             const requestDeleteTask = (id) => { setDeleteConfirm({ open: true, taskId: id, type: 'task' }); };
             const requestDeleteNode = (taskId, nodeId) => { setDeleteConfirm({ open: true, taskId: taskId, nodeId: nodeId, type: 'node' }); };
             const executeDelete = async () => { if (!deleteConfirm.taskId) return; const { taskId, nodeId, type } = deleteConfirm; setDeleteConfirm({ ...deleteConfirm, open: false }); if (type === 'task') { await supabase.from('tasks').delete().eq('id', taskId); if (activeTaskId === taskId) setActiveTaskId(null); } else if (type === 'node' && nodeId) { const task = tasks.find(t => t.id === taskId); if (task) { const newNodes = task.nodes.filter(n => n.id !== nodeId); await handleUpdateTask(taskId, { nodes: newNodes }); } } };
-            const handleCreateTask = async () => { const newId = generateId(); const newTask = { id: crypto.randomUUID(), title: '新牛马任务', summary: '', urgency: 'quote', nodes: [], customerName: '', createdAt: new Date().toISOString() }; const { data, error } = await supabase.from('tasks').insert(newTask).select(); if (data && data[0]) setActiveTaskId(data[0].id); };
-            const handleQuickAdd = async (data) => { setShowQuickAdd(false); const existing = tasks.find(t => t.title === data.taskTitle); const newNode = { id: generateId(), text: data.content, completed: false, assignee: data.assignee, plannedDate: data.date, plannedEndDate: null, isImportant: data.isImportant }; if (existing) { const nodes = [...(existing.nodes || []), newNode]; await handleUpdateTask(existing.id, { nodes, customerName: data.customer || existing.customerName }); } else { await supabase.from('tasks').insert({ id: crypto.randomUUID(), title: data.taskTitle, summary: '', urgency: 'quote', nodes: [newNode], customerName: data.customer, createdAt: new Date().toISOString() }); } };
+            const handleCreateTask = async () => { const newId = generateId(); const newTask = { id: crypto.randomUUID(), title: '新牛马任务', summary: '', urgency: 'wait_me', nodes: [], customerName: '', createdAt: new Date().toISOString() }; const { data, error } = await supabase.from('tasks').insert(newTask).select(); if (data && data[0]) setActiveTaskId(data[0].id); };
+            const handleQuickAdd = async (data) => { setShowQuickAdd(false); const existing = tasks.find(t => t.title === data.taskTitle); const newNode = { id: generateId(), text: data.content, completed: false, assignee: data.assignee, plannedDate: data.date, plannedEndDate: null, isImportant: data.isImportant }; if (existing) { const nodes = [...(existing.nodes || []), newNode]; await handleUpdateTask(existing.id, { nodes, customerName: data.customer || existing.customerName }); } else { await supabase.from('tasks').insert({ id: crypto.randomUUID(), title: data.taskTitle, summary: '', urgency: 'wait_me', nodes: [newNode], customerName: data.customer, createdAt: new Date().toISOString() }); } };
 
             const handleRestoreData = async (importedData) => {
                 const transformed = importedData.map(t => {
@@ -582,7 +575,13 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
             const activeTask = tasks.find(t => t.id === activeTaskId);
             const allCustomers = useMemo(() => Array.from(new Set(tasks.map(t => t.customerName).filter(Boolean))).sort(), [tasks]);
             const allAssignees = useMemo(() => { const s = new Set(); tasks.forEach(t => (t.nodes || []).forEach(n => n.assignee && s.add(n.assignee))); return Array.from(s).sort(); }, [tasks]);
-            const filteredTasks = useMemo(() => { if (currentView === 'all_active') return tasks.filter(t => t.urgency !== 'completed'); if (currentView === 'completed_tasks') return tasks.filter(t => t.urgency === 'completed'); if (['quote', 'order', 'shipping', 'payment'].includes(currentView)) return tasks.filter(t => t.urgency === currentView); return tasks.filter(t => t.urgency !== 'completed'); }, [tasks, currentView]);
+            
+            const filteredTasks = useMemo(() => { 
+                if (currentView === 'all_active') return tasks.filter(t => t.urgency !== 'completed'); 
+                if (currentView === 'completed_tasks') return tasks.filter(t => t.urgency === 'completed'); 
+                if (currentView === 'weekly') return tasks; 
+                return tasks.filter(t => t.urgency !== 'completed'); 
+            }, [tasks, currentView]);
 
             if (loading) return <div className="h-screen flex flex-col items-center justify-center bg-[#F5F7FA]"><Loader2 className="animate-spin text-[#4A90E2] mb-4" size={48}/><p className="font-black text-slate-400">正在接入 Supabase 云端数据库...</p></div>;
 
@@ -592,7 +591,7 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
                     <MoyuModal isOpen={moyuState.open} onClose={() => setMoyuState({...moyuState, open: false})} message={moyuState.message} />
                     <SetupGuideModal isOpen={showSetupGuide} onClose={() => setShowSetupGuide(false)} />
                     {showQuickAdd && <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="w-full max-w-lg"><QuickNodeForm tasks={tasks} allCustomers={allCustomers} allAssignees={allAssignees} initialDate={Date.now()} onSubmit={handleQuickAdd} onClose={() => setShowQuickAdd(false)}/></div></div>}
-                    {showAIAnalysis && <AIAnalysisModal tasks={tasks} onClose={() => setShowAIAnalysis(false)} />}
+                    {showGlobalAI && <GlobalAIModal tasks={tasks} onClose={() => setShowGlobalAI(false)} />}
                     {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} tasks={tasks} onRestore={handleRestoreData} />}
 
                     <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#E9E9E9] shadow-sm">
@@ -610,13 +609,13 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
                                 <div className="flex items-center gap-2 flex-1 justify-end relative">
                                     <div className="hidden md:flex items-center gap-3"><button onClick={() => triggerMoyu(false)} className="p-2 text-yellow-500 hover:text-yellow-600 transition-all bg-yellow-50 rounded-xl hover:bg-yellow-100" title="摸鱼"><Coffee size={20}/></button><button onClick={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')} className="p-2 text-slate-500 hover:text-[#4A90E2] transition-all bg-slate-50 rounded-xl hover:bg-slate-100" title={viewMode === 'grid' ? "切换到列表视图" : "切换到网格视图"}>{viewMode === 'grid' ? <List size={20}/> : <LayoutGrid size={20}/>}</button></div>
                                     <GlobalSearchBar tasks={tasks} onSelectTask={setActiveTaskId} onSelectAssignee={(name) => { setActiveAssignee(name); setActiveTaskId(null); }} />
-                                    <div className="hidden md:flex items-center gap-3"><button onClick={() => setShowAIAnalysis(true)} className="p-2 text-blue-400 hover:text-blue-600 transition-all bg-blue-50 rounded-xl" title="智能军师"><BrainCircuit size={20}/></button><button onClick={() => setShowQuickAdd(true)} className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-all" title="快速加节点"><Zap size={20} fill="currentColor"/></button><button onClick={handleCreateTask} className="bg-[#4A90E2] text-white px-4 py-2 rounded-xl font-black flex items-center gap-1 shadow-lg shadow-blue-100 hover:bg-[#357ABD] transition-all active:scale-95 text-sm whitespace-nowrap"><Plus size={18}/>新任务</button><button onClick={() => setShowSettings(true)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"><Settings size={20}/></button></div>
+                                    <div className="hidden md:flex items-center gap-3"><button onClick={() => setShowGlobalAI(true)} className="p-2 text-white hover:opacity-90 transition-all bg-indigo-500 rounded-xl shadow-md shadow-indigo-200" title="AI 军师 (批量优化)"><BrainCircuit size={20}/></button><button onClick={() => setShowQuickAdd(true)} className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-all" title="快速加节点"><Zap size={20} fill="currentColor"/></button><button onClick={handleCreateTask} className="bg-[#4A90E2] text-white px-4 py-2 rounded-xl font-black flex items-center gap-1 shadow-lg shadow-blue-100 hover:bg-[#357ABD] transition-all active:scale-95 text-sm whitespace-nowrap"><Plus size={18}/>新任务</button><button onClick={() => setShowSettings(true)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"><Settings size={20}/></button></div>
                                     <button className="md:hidden p-2 text-slate-500 bg-slate-50 rounded-xl hover:bg-slate-100 active:scale-95 transition-all" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>{mobileMenuOpen ? <X size={20}/> : <Menu size={20}/>}</button>
                                     {mobileMenuOpen && (
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 grid grid-cols-2 gap-2 z-50 md:hidden animate-in fade-in slide-in-from-top-2">
                                             <MobileMenuItem onClick={() => { triggerMoyu(false); setMobileMenuOpen(false); }} icon={Coffee} label="摸鱼" color="text-yellow-500 bg-yellow-50"/>
                                             <MobileMenuItem onClick={() => { setViewMode(m=>m==='grid'?'list':'grid'); setMobileMenuOpen(false); }} icon={viewMode==='grid'?List:LayoutGrid} label={viewMode==='grid'?'列表':'网格'} color="text-slate-500 bg-slate-50"/>
-                                            <MobileMenuItem onClick={() => { setShowAIAnalysis(true); setMobileMenuOpen(false); }} icon={BrainCircuit} label="军师" color="text-blue-500 bg-blue-50"/>
+                                            <MobileMenuItem onClick={() => { setShowGlobalAI(true); setMobileMenuOpen(false); }} icon={BrainCircuit} label="军师" color="text-indigo-500 bg-indigo-50"/>
                                             <MobileMenuItem onClick={() => { setShowQuickAdd(true); setMobileMenuOpen(false); }} icon={Zap} label="速记" color="text-green-500 bg-green-50"/>
                                             <MobileMenuItem onClick={() => { handleCreateTask(); setMobileMenuOpen(false); }} icon={Plus} label="新建" color="text-white bg-[#4A90E2]"/>
                                             <MobileMenuItem onClick={() => { setShowSettings(true); setMobileMenuOpen(false); }} icon={Settings} label="设置" color="text-slate-400 bg-slate-50"/>
@@ -624,9 +623,7 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
                                     )}
                                 </div>
                             </div>
-                            {!activeTaskId && !activeAssignee && (
-                                <div className="px-4 pb-0 overflow-x-auto no-scrollbar"><div className="flex gap-2 pb-3 min-w-max">{navItems.map(item => (<button key={item.id} onClick={() => setCurrentView(item.id)} className={`px-4 py-2 rounded-xl text-xs font-black transition-all border ${currentView === item.id ? 'bg-[#4A90E2] text-white border-[#4A90E2] shadow-md shadow-blue-200' : 'bg-white text-slate-500 border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}>{item.label}</button>))}</div></div>
-                            )}
+                            <div className="px-4 pb-0 overflow-x-auto no-scrollbar"><div className="flex gap-2 pb-3 min-w-max">{navItems.map(item => (<button key={item.id} onClick={() => setCurrentView(item.id)} className={`px-4 py-2 rounded-xl text-xs font-black transition-all border ${currentView === item.id ? 'bg-[#4A90E2] text-white border-[#4A90E2] shadow-md shadow-blue-200' : 'bg-white text-slate-500 border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}>{item.label}</button>))}</div></div>
                         </div>
                     </header>
 
@@ -641,12 +638,12 @@ create policy "Public Access" on public.tasks for all using (true) with check (t
                             <CompletedNodesView tasks={tasks} onSelectTask={setActiveTaskId} onBack={() => setCurrentView('all_active')} />
                         ) : (
                             <>
-                                {currentView === 'all_active' && (<div className="col-span-full"><ImportantNodesSection tasks={tasks} onSelectTask={setActiveTaskId} onToggleNode={handleToggleNode} onDeleteNode={requestDeleteNode} /><OverdueSection tasks={tasks} onSelectTask={setActiveTaskId} onToggleNode={handleToggleNode} onDeleteNode={requestDeleteNode} /></div>)}
+                                {currentView === 'all_active' && (<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"><ImportantNodesSection tasks={tasks} onSelectTask={setActiveTaskId} onToggleNode={handleToggleNode} onDeleteNode={requestDeleteNode} /><OverdueSection tasks={tasks} onSelectTask={setActiveTaskId} onToggleNode={handleToggleNode} onDeleteNode={requestDeleteNode} /></div>)}
                                 <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" : "flex flex-col gap-3"}>
                                     {filteredTasks.map(t => {
                                         const nextNodes = (t.nodes || []).filter(n => !n.completed && n.plannedDate).sort((a,b) => (a.plannedDate || 0) - (b.plannedDate || 0));
                                         const nextNode = nextNodes[0];
-                                        const config = urgencyConfig[t.urgency] || urgencyConfig['quote'];
+                                        const config = urgencyConfig[t.urgency] || urgencyConfig['wait_me']; // Default to wait_me
                                         const StatusIcon = config.icon || Circle;
 
                                         if (viewMode === 'list') {
